@@ -102,6 +102,13 @@ public class ProductViewUI extends javax.swing.JDialog {
             cboxCategory.addItem(item);
         }
         cboxCategory.addItem("Thêm loại hàng mới...");
+        
+        //Combo box unit
+        List<String> unitComboItems = EntityManager.unitDAO.getUnits();
+        for (String item : unitComboItems) {
+            cboxUnit.addItem(item);
+        }
+        cboxUnit.addItem("Thêm mới...");
 
         btnAdd.setText("Lưu");
         txtId.setText(String.valueOf(product.getId()));
@@ -499,7 +506,7 @@ public class ProductViewUI extends javax.swing.JDialog {
             check = false;
             lblCategoryRq.setVisible(true);
         }
-        if ("Chọn...".equals((String) cboxUnit.getSelectedItem())) {
+        if ("Chọn đơn vị...".equals((String) cboxUnit.getSelectedItem())) {
             check = false;
             lblQuantityRq.setVisible(true);
         }

@@ -5,6 +5,7 @@
  */
 package com.sownbanana.model;
 
+import com.sownbanana.controller.UIController;
 import java.util.Date;
 import java.util.List;
 
@@ -12,24 +13,32 @@ import java.util.List;
  *
  * @author son.ph173344
  */
-public class SalesInvoice extends Invoice{
-    private Date shipDate;
+public class SalesInvoice extends Invoice {
+
 
     public SalesInvoice() {
     }
 
     public SalesInvoice(Date shipDate, int id, List<Product> soldProducts, Date createDate, int status, String note) {
         super(id, soldProducts, createDate, status, note);
-        this.shipDate = shipDate;
+        super.setSecondDate(shipDate);
     }
-    
 
     public Date getShipDate() {
-        return shipDate;
+        return super.getSecondDate();
     }
 
     public void setShipDate(Date shipDate) {
-        this.shipDate = shipDate;
+        super.setSecondDate(shipDate);
     }
+
     
+    @Override
+    public String toString() {
+        return UIController.center(this.getId(), 15) + "|"
+                + UIController.center(this.getCreateDate(), 26) + "|" + UIController.center(this.getShipDate(), 26) + "|"
+                + UIController.center(this.getTotalCost(), 33) + "|" + UIController.center(this.getPaid(), 33) + "|"
+                + UIController.center(super.getNote(), 23);
+    }
+
 }

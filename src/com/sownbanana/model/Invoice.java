@@ -5,6 +5,7 @@
  */
 package com.sownbanana.model;
 
+import com.sownbanana.controller.UIController;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -13,17 +14,31 @@ import java.util.List;
  *
  * @author son.ph173344
  */
-public abstract class Invoice {
+public class Invoice{
+
     private int id;
     private List<Product> soldProducts;
     private Date createDate;
+    private Date secondDate;
     private int status;
     private String note;
+    private Double paid;
 
     public Invoice() {
         this.soldProducts = new ArrayList<Product>();
     }
 
+    public Invoice(int id, List<Product> soldProducts, Date createDate, Date secondDate, int status, String note, Double paid) {
+        this.id = id;
+        this.soldProducts = soldProducts;
+        this.createDate = createDate;
+        this.secondDate = secondDate;
+        this.status = status;
+        this.note = note;
+        this.paid = paid;
+    }
+
+    
     public Invoice(int id, List<Product> soldProducts, Date createDate, int status, String note) {
         this.id = id;
         this.soldProducts = soldProducts;
@@ -40,7 +55,6 @@ public abstract class Invoice {
         this.note = note;
     }
 
-    
     public int getId() {
         return id;
     }
@@ -72,5 +86,35 @@ public abstract class Invoice {
     public void setStatus(int status) {
         this.status = status;
     }
+
+    public Double getPaid() {
+        return paid;
+    }
+
+    public void setPaid(Double paid) {
+        this.paid = paid;
+    }
+
+    public Date getSecondDate() {
+        return secondDate;
+    }
+
+    public void setSecondDate(Date secondDate) {
+        this.secondDate = secondDate;
+    }
     
+
+    public Double getTotalCost() {
+        Double sum = 0.0;
+        for (Product p : this.getSoldProducts()) {
+            sum += p.getRetailPrice() * p.getQuantity();
+        }
+        return sum;
+    }
+
+    @Override
+    public String toString() {
+        return "Invoice{" + "id=" + id + ", soldProducts=" + soldProducts + ", createDate=" + createDate + ", status=" + status + ", note=" + note + ", paid=" + paid + '}';
+    }
+
 }

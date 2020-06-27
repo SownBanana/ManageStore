@@ -5,14 +5,11 @@
  */
 package com.sownbanana.connection;
 
-import com.sownbanana.model.Address;
 import com.sownbanana.model.ImportInvoice;
 import com.sownbanana.model.Invoice;
 import com.sownbanana.model.LoanInvoice;
-import com.sownbanana.model.Payment;
 import com.sownbanana.model.Product;
 import com.sownbanana.model.SalesInvoice;
-import com.sownbanana.model.Supplier;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -42,16 +39,16 @@ public class InvoiceDAO {
             ResultSet rs = statement.executeQuery(query);
             while (rs.next()) {
                 int type = rs.getInt("type");
-                if (type == 0) {
+                if (type == 1) {
                     importInvoice.setId(rs.getInt("invoiceid"));
                     importInvoice.setCreateDate(rs.getDate("create_date"));
                     importInvoice.setReceiveDate(rs.getDate("finish_date"));
                     importInvoice.setNote(rs.getString("note"));
                     list.add(importInvoice);
-                } else if (type == 1) {
+                } else if (type == 3) {
                     loanInvoice.setId(rs.getInt("invoiceid"));
                     loanInvoice.setCreateDate(rs.getDate("create_date"));
-                    loanInvoice.setReturDate(rs.getDate("finish_date"));
+                    loanInvoice.setReturnDate(rs.getDate("finish_date"));
                     loanInvoice.setNote(rs.getString("note"));
                     list.add(loanInvoice);
                 } else {
@@ -98,7 +95,7 @@ public class InvoiceDAO {
 
     public List<LoanInvoice> getAllLoanInvoices() {
         String query = "SELECT * \n"
-                + "FROM store_manager.invoice as i WHERE i.type = 1";
+                + "FROM store_manager.invoice as i WHERE i.type = 3";
 
         List<LoanInvoice> list = new ArrayList<LoanInvoice>();
         LoanInvoice loanInvoice = new LoanInvoice();
@@ -109,8 +106,9 @@ public class InvoiceDAO {
             while (rs.next()) {
                 loanInvoice.setId(rs.getInt("invoiceid"));
                 loanInvoice.setCreateDate(rs.getDate("create_date"));
-                loanInvoice.setReturDate(rs.getDate("finish_date"));
+                loanInvoice.setReturnDate(rs.getDate("finish_date"));
                 loanInvoice.setNote(rs.getString("note"));
+                loanInvoice.setPaid(rs.getDouble("paid"));
                 list.add(loanInvoice);
             }
             rs.close();
@@ -136,6 +134,7 @@ public class InvoiceDAO {
                 salesInvoice.setCreateDate(rs.getDate("create_date"));
                 salesInvoice.setShipDate(rs.getDate("finish_date"));
                 salesInvoice.setNote(rs.getString("note"));
+                salesInvoice.setPaid(rs.getDouble("paid"));
                 list.add(salesInvoice);
             }
             rs.close();
@@ -149,7 +148,7 @@ public class InvoiceDAO {
     //Get Invoice by id
     public List<ImportInvoice> getImportInvoices(int id) {
         String query = "SELECT * \n"
-                + "FROM store_manager.invoice as i WHERE i.type = 0 AND ownerid = ";
+                + "FROM store_manager.invoice as i WHERE i.type = 1 AND ownerid = ";
         query += id;
         List<ImportInvoice> list = new ArrayList<ImportInvoice>();
         ImportInvoice importInvoice = new ImportInvoice();
@@ -162,6 +161,7 @@ public class InvoiceDAO {
                 importInvoice.setCreateDate(rs.getDate("create_date"));
                 importInvoice.setReceiveDate(rs.getDate("finish_date"));
                 importInvoice.setNote(rs.getString("note"));
+                importInvoice.setPaid(rs.getDouble("paid"));
                 list.add(importInvoice);
             }
             rs.close();
@@ -174,7 +174,7 @@ public class InvoiceDAO {
 
     public List<LoanInvoice> getLoanInvoices(int id) {
         String query = "SELECT * \n"
-                + "FROM store_manager.invoice as i WHERE i.type = 1 AND ownerid = ";
+                + "FROM store_manager.invoice as i WHERE i.type = 3 AND ownerid = ";
         query += id;
         List<LoanInvoice> list = new ArrayList<LoanInvoice>();
         LoanInvoice loanInvoice = new LoanInvoice();
@@ -185,7 +185,7 @@ public class InvoiceDAO {
             while (rs.next()) {
                 loanInvoice.setId(rs.getInt("invoiceid"));
                 loanInvoice.setCreateDate(rs.getDate("create_date"));
-                loanInvoice.setReturDate(rs.getDate("finish_date"));
+                loanInvoice.setReturnDate(rs.getDate("finish_date"));
                 loanInvoice.setNote(rs.getString("note"));
                 list.add(loanInvoice);
             }
@@ -236,6 +236,7 @@ public class InvoiceDAO {
         try {
 //            Connection connection = conn.getConnection();
             Statement statement = connection.createStatement();
+//            System.out.println(query);
             ResultSet rs = statement.executeQuery(query);
             rs.next();
 
@@ -243,16 +244,19 @@ public class InvoiceDAO {
             importInvoice.setCreateDate(rs.getDate("create_date"));
             importInvoice.setReceiveDate(rs.getDate("finish_date"));
             importInvoice.setNote(rs.getString("note"));
+            importInvoice.setPaid(rs.getDouble("paid"));
             do {
+                importProduct = new Product();
                 importProduct.setId(rs.getInt("productid"));
                 importProduct.setQuantity(rs.getDouble("quantity"));
                 importProduct.setName(rs.getString("name"));
                 importProduct.setCategoryString(rs.getInt("categoryid"));
                 importProduct.setUnit(rs.getString("unit"));
-                importProduct.setSize(rs.getString("size"));
+//                importProduct.setSize(rs.getString("size"));
                 importProduct.setRetailPrice(rs.getDouble("retail_price"));
 
                 importInvoice.getSoldProducts().add(importProduct);
+             
             } while (rs.next());
 
             rs.close();
@@ -267,6 +271,7 @@ public class InvoiceDAO {
         String query = "SELECT * FROM \n"
                 + "store_manager.invoice as i \n"
                 + "LEFT JOIN store_manager.invoice_product as ip ON i.invoiceid = ip.invoiceid\n"
+                + "LEFT JOIN product as p ON ip.productid = p.productid "
                 + "WHERE i.invoiceid = ";
         query += id;
         LoanInvoice loanInvoice = new LoanInvoice();
@@ -277,10 +282,12 @@ public class InvoiceDAO {
             ResultSet rs = statement.executeQuery(query);
             rs.next();
             loanInvoice.setId(rs.getInt("invoiceid"));
-            loanInvoice.setCreateDate(rs.getDate("creat_date"));
-            loanInvoice.setReturDate(rs.getDate("finish_date"));
+            loanInvoice.setCreateDate(rs.getDate("create_date"));
+            loanInvoice.setReturnDate(rs.getDate("finish_date"));
             loanInvoice.setNote(rs.getString("note"));
+            loanInvoice.setPaid(rs.getDouble("paid"));
             do {
+                loanpProduct = new Product();
                 loanpProduct.setId(rs.getInt("productid"));
                 loanpProduct.setQuantity(rs.getDouble("quantity"));
                 loanpProduct.setName(rs.getString("name"));
@@ -301,8 +308,11 @@ public class InvoiceDAO {
     }
 
     public SalesInvoice getSalesInvoiceDetail(int id) {
-        String query = "SELECT * \n"
-                + "FROM store_manager.invoice as i WHERE i.type = 2 AND ownerid = ";
+        String query = "SELECT * FROM \n"
+                + "store_manager.invoice as i \n"
+                + "LEFT JOIN store_manager.invoice_product as ip ON i.invoiceid = ip.invoiceid\n"
+                + "LEFT JOIN product as p ON ip.productid = p.productid "
+                + "WHERE i.invoiceid = ";
         query += id;
         SalesInvoice salesInvoice = new SalesInvoice();
         Product salesProduct = new Product();
@@ -312,10 +322,12 @@ public class InvoiceDAO {
             ResultSet rs = statement.executeQuery(query);
             rs.next();
             salesInvoice.setId(rs.getInt("invoiceid"));
-            salesInvoice.setCreateDate(rs.getDate("creat_date"));
+            salesInvoice.setCreateDate(rs.getDate("create_date"));
             salesInvoice.setShipDate(rs.getDate("finish_date"));
             salesInvoice.setNote(rs.getString("note"));
-            while (rs.next()) {
+            salesInvoice.setPaid(rs.getDouble("paid"));
+            do {
+                salesProduct = new Product();
                 salesProduct.setId(rs.getInt("productid"));
                 salesProduct.setQuantity(rs.getDouble("quantity"));
                 salesProduct.setName(rs.getString("name"));
@@ -325,7 +337,7 @@ public class InvoiceDAO {
                 salesProduct.setRetailPrice(rs.getDouble("retail_price"));
 
                 salesInvoice.getSoldProducts().add(salesProduct);
-            }
+            }while (rs.next());
             rs.close();
 
         } catch (SQLException e) {

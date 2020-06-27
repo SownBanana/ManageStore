@@ -25,6 +25,8 @@ public class EntityManager {
     public static List<Customer> customers = new ArrayList<Customer>();
     public static List<FriendAgency> friendAgencys = new ArrayList<FriendAgency>();
     
+    public static FriendAgencyDAO friendAgencyDAO = new FriendAgencyDAO();
+    public static CustomerDAO customerDAO = new CustomerDAO();
     public static SupplierDAO supplierDAO = new SupplierDAO();
     public static ProductDAO productDAO = new ProductDAO();
     public static InvoiceDAO invoiceDAO = new InvoiceDAO();

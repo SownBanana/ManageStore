@@ -83,28 +83,35 @@ public class Address {
         this.provine = provine;
     }
 
+//    @Override
+//    public String toString() {
+//        String rs = "";
+//        if (detail == null) {
+//        }
+//        else if (detail.trim().equals("")) {
+//        } else {
+//            rs += detail + ", ";
+//        }
+//        if (village != null && !village.trim().equals("")) {
+//            rs += "Thôn " + village + ", ";
+//        }
+//        if (commune != null && !commune.trim().equals("")) {
+//            rs += "Xã " + commune + ", ";
+//        }
+//        if (town != null && !town.trim().equals("")) {
+//            rs += "Huyện " + town + ", ";
+//        }
+//        if (provine != null && !provine.trim().equals("")) {
+//            rs += "Tỉnh " + provine;
+//        }
+//        return rs;
+//    }
+
     @Override
     public String toString() {
-        String rs = "";
-        if (detail == null) {
-        }
-        else if (detail.trim().equals("")) {
-        } else {
-            rs += detail + ", ";
-        }
-        if (village != null && !village.trim().equals("")) {
-            rs += "Thôn " + village + ", ";
-        }
-        if (commune != null && !commune.trim().equals("")) {
-            rs += "Xã " + commune + ", ";
-        }
-        if (town != null && !town.trim().equals("")) {
-            rs += "Huyện " + town + ", ";
-        }
-        if (provine != null && !provine.trim().equals("")) {
-            rs += "Tỉnh " + provine;
-        }
-        return rs;
+        return provine;
     }
+    
+    
 
 }

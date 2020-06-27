@@ -6,10 +6,6 @@
 package com.sownbanana.connection;
 
 import com.sownbanana.model.Product;
-import com.sownbanana.model.Address;
-import com.sownbanana.model.Payment;
-import com.sownbanana.model.Supplier;
-import java.lang.constant.ConstantDescs;
 import java.util.ArrayList;
 import java.util.List;
 import java.sql.*;

@@ -8,11 +8,13 @@ package com.sownbanana.view;
 import com.sownbanana.connection.EntityManager;
 import com.sownbanana.controller.ProductController;
 import com.sownbanana.model.Customer;
+import com.sownbanana.model.FriendAgency;
 import com.sownbanana.model.ImportInvoice;
 import com.sownbanana.model.LoanInvoice;
 import com.sownbanana.model.Product;
 import com.sownbanana.model.ProductTableModel;
 import com.sownbanana.model.SalesInvoice;
+import com.sownbanana.model.ShowProductModel;
 import com.sownbanana.model.Supplier;
 import java.awt.Color;
 import java.awt.Component;
@@ -32,17 +34,27 @@ import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 import java.sql.Date;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeNode;
+import javax.swing.tree.TreePath;
 
 /**
  *
@@ -63,28 +75,52 @@ public class MainUI extends javax.swing.JFrame {
 
     //Customer
     List<Customer> customersList;
+    DefaultListModel<String> customerNameModel;
+    List<String> customersNameList;
+    
     List<SalesInvoice> salesInvoicesList;
+    
     DefaultTableModel salesInvoicesModel;
     Vector vctSalesInvoicesHeader = new Vector();
-    Vector vctSalesInvoicesData = new Vector();
+//    Vector vctSalesInvoicesData = new Vector();
+    
+    DefaultTreeModel treeImportModel;
+    DefaultMutableTreeNode importRoot;
+
+    int cusId;
 
     //Supplier
     DefaultListModel<String> supplierNameModel;
     List<Supplier> suppliersList;
     List<String> supplierNameList;
     List<ImportInvoice> importInvoicesList;
+    
     DefaultTableModel importInvoicesModel;
     Vector vctImportInvoicesHeader = new Vector();
-    Vector vctImportInvoicesData = new Vector();
+//    Vector vctImportInvoicesData = new Vector();
     
-    
+    DefaultTreeModel treeSaleModel;
+    DefaultMutableTreeNode saleRoot;
+
+    int supId;
 
     //Friend Agency
     List<Product> friendsList;
+    DefaultListModel<String> friendsNameModel;
+    List<String> friendsNameList;
+    
     List<LoanInvoice> loanInvoicesList;
+    
     DefaultTableModel loanInvoicesModel;
     Vector vctLoanInvoicesHeader = new Vector();
-    Vector vctLoanInvoicesData = new Vector();
+//    Vector vctLoanInvoicesData = new Vector();
+
+    DefaultTreeModel treeLoanModel;
+    DefaultMutableTreeNode loanRoot;
+
+    int friendId;
+
+    boolean isAdding = false;
 
     /**
      * Creates new form MainUI
@@ -92,6 +128,11 @@ public class MainUI extends javax.swing.JFrame {
     public MainUI() {
         initComponents();
 
+        DefaultTreeCellRenderer render = new DefaultTreeCellRenderer();
+//        render.setLeafIcon(null);
+        render.setOpenIcon(null);
+        render.setClosedIcon(null);
+        
         //Product Tab Init
         vctProductsHeader.add("ID");
         vctProductsHeader.add("Tên");
@@ -144,6 +185,31 @@ public class MainUI extends javax.swing.JFrame {
         vctSalesInvoicesHeader.add("Tổng thu");
         vctSalesInvoicesHeader.add("Đã thu");
         vctSalesInvoicesHeader.add("Ghi chú");
+        
+        //Tree
+        saleRoot = new DefaultMutableTreeNode("Root");
+        treeSaleModel = new DefaultTreeModel(saleRoot);
+        treeSale.setCellRenderer(render);
+        treeSale.setModel(treeSaleModel);
+        treeSale.setRootVisible(false);
+        treeSale.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.getClickCount() >= 2 && !SwingUtilities.isRightMouseButton(e)) {
+                    DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeSale.getLastSelectedPathComponent();
+                    if (selectedNode != null) {
+                        if (selectedNode.isLeaf()) {
+                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
+                            if (editproduct.isDataChange) {
+                                showProductTable();
+                            }
+                        }
+                    }
+                }
+            }
+
+        });
 
         //Supplier Tab Init
         vctImportInvoicesHeader.add("ID");
@@ -152,8 +218,42 @@ public class MainUI extends javax.swing.JFrame {
         vctImportInvoicesHeader.add("Tổng chi");
         vctImportInvoicesHeader.add("Đã chi");
         vctImportInvoicesHeader.add("Ghi chú");
+        
+        //Tree supplier
+        importRoot = new DefaultMutableTreeNode("Root");
+        treeImportModel = new DefaultTreeModel(importRoot);
+        treeImport.setCellRenderer(render);
+        treeImport.setModel(treeImportModel);
+        treeImport.setRootVisible(false);
+        treeImport.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.getClickCount() >= 2 && !SwingUtilities.isRightMouseButton(e)) {
+                    DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeImport.getLastSelectedPathComponent();
+                    if (selectedNode != null) {
+                        if (selectedNode.isLeaf()) {
+                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
+                            if (editproduct.isDataChange) {
+                                showProductTable();
+                            }
+                        }
+                    }
+                }
+            }
+
+        });
+
+        centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        rightRenderer = new DefaultTableCellRenderer();
+        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
+        tableProduct.setDefaultRenderer(String.class, centerRenderer);
+        tableProduct.setDefaultRenderer(Double.class, centerRenderer);
+        tableProduct.setDefaultRenderer(LocalDate.class, rightRenderer);
 
         //Friend Agency Tab Init
+        //Table
         vctLoanInvoicesHeader.add("ID");
         vctLoanInvoicesHeader.add("Ngày đặt hàng");
         vctLoanInvoicesHeader.add("Ngày giao hàng");
@@ -161,6 +261,32 @@ public class MainUI extends javax.swing.JFrame {
         vctLoanInvoicesHeader.add("Đã thanh toán");
         vctLoanInvoicesHeader.add("Ghi chú");
 
+        //Tree
+        loanRoot = new DefaultMutableTreeNode("Root");
+        treeLoanModel = new DefaultTreeModel(loanRoot);
+        treeLoan.setCellRenderer(render);
+        treeLoan.setModel(treeLoanModel);
+        treeLoan.setRootVisible(false);
+        treeLoan.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.getClickCount() >= 2 && !SwingUtilities.isRightMouseButton(e)) {
+                    DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeLoan.getLastSelectedPathComponent();
+                    if (selectedNode != null) {
+                        if (selectedNode.isLeaf()) {
+                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
+                            if (editproduct.isDataChange) {
+                                showProductTable();
+                            }
+                        }
+                    }
+                }
+            }
+
+        });
+
+        
         centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         rightRenderer = new DefaultTableCellRenderer();
@@ -195,12 +321,50 @@ public class MainUI extends javax.swing.JFrame {
             }
         });
         showResult();
-        
-        //List supplier
+
+        //List suppliers
         supplierNameList = EntityManager.supplierDAO.getSuppliersName();
         supplierNameModel = new DefaultListModel<>();
         supplierNameModel.addAll(supplierNameList);
         listSupplier.setModel(supplierNameModel);
+        listSupplier.setSelectedIndex(0);
+        showSupplier(listSupplier.getSelectedValue());
+
+        lblSupExist.setVisible(false);
+
+        //List customers
+        customersNameList = EntityManager.customerDAO.getCustomersName();
+        customerNameModel = new DefaultListModel<>();
+        customerNameModel.addAll(customersNameList);
+        listCustomer.setModel(customerNameModel);
+        listCustomer.setSelectedIndex(0);
+        showCustomer(listCustomer.getSelectedValue());
+
+        lblCusExist.setVisible(false);
+
+        //List friends
+        friendsNameList = EntityManager.friendAgencyDAO.getFriendAgencysName();
+        friendsNameModel = new DefaultListModel<>();
+        friendsNameModel.addAll(friendsNameList);
+        listFriend.setModel(friendsNameModel);
+        listFriend.setSelectedIndex(0);
+        showFriend(listFriend.getSelectedValue());
+
+        lblFrdExist.setVisible(false);
+
+        //dấdasdadasd
+        btnSupSave.setVisible(false);
+        btnSupCancel.setVisible(false);
+        btnSupDel.setVisible(false);
+
+        btnCusSave.setVisible(false);
+        btnCusCancel.setVisible(false);
+        btnCusDel.setVisible(false);
+
+        btnFrdSave.setVisible(false);
+        btnFrdCancel.setVisible(false);
+        btnFrdDel.setVisible(false);
+
     }
 
     /**
@@ -245,23 +409,29 @@ public class MainUI extends javax.swing.JFrame {
         jLabel16 = new javax.swing.JLabel();
         jLabel17 = new javax.swing.JLabel();
         jLabel18 = new javax.swing.JLabel();
-        jLabel19 = new javax.swing.JLabel();
         txtCusID = new javax.swing.JTextField();
         txtCusName = new javax.swing.JTextField();
         txtCusPhone = new javax.swing.JTextField();
-        jLabel20 = new javax.swing.JLabel();
-        txtCusBankID = new javax.swing.JTextField();
-        jLabel21 = new javax.swing.JLabel();
-        txtCusBank = new javax.swing.JTextField();
         jScrollPane5 = new javax.swing.JScrollPane();
         tableSalesInvoice = new javax.swing.JTable();
         btnCusCancel = new javax.swing.JButton();
         btnCusSave = new javax.swing.JButton();
         btnCusEdit = new javax.swing.JButton();
         jLabel25 = new javax.swing.JLabel();
-        jTextField3 = new javax.swing.JTextField();
+        jLabel32 = new javax.swing.JLabel();
+        txtCusNameBank = new javax.swing.JTextField();
+        jLabel33 = new javax.swing.JLabel();
+        txtCusBankID = new javax.swing.JTextField();
+        jLabel35 = new javax.swing.JLabel();
+        txtCusBank = new javax.swing.JTextField();
+        jLabel37 = new javax.swing.JLabel();
+        txtCusAddr = new javax.swing.JTextField();
+        btnCusDel = new javax.swing.JButton();
+        lblCusExist = new javax.swing.JLabel();
+        jScrollPane10 = new javax.swing.JScrollPane();
+        treeSale = new javax.swing.JTree();
         editSearchCustomer = new javax.swing.JTextField();
-        btnAllCustomer = new javax.swing.JButton();
+        btnAddCustomer = new javax.swing.JButton();
         jScrollPane6 = new javax.swing.JScrollPane();
         listCustomer = new javax.swing.JList<>();
         jPanel3 = new javax.swing.JPanel();
@@ -289,8 +459,12 @@ public class MainUI extends javax.swing.JFrame {
         jLabel26 = new javax.swing.JLabel();
         txtSupAddr = new javax.swing.JTextField();
         jLabel29 = new javax.swing.JLabel();
-        txtNameBank = new javax.swing.JTextField();
-        btnAllSupplier = new javax.swing.JButton();
+        txtSupNameBank = new javax.swing.JTextField();
+        lblSupExist = new javax.swing.JLabel();
+        btnSupDel = new javax.swing.JButton();
+        jScrollPane9 = new javax.swing.JScrollPane();
+        treeImport = new javax.swing.JTree();
+        btnAddSupplier = new javax.swing.JButton();
         jPanel5 = new javax.swing.JPanel();
         jPanel9 = new javax.swing.JPanel();
         jScrollPane3 = new javax.swing.JScrollPane();
@@ -301,23 +475,30 @@ public class MainUI extends javax.swing.JFrame {
         jLabel9 = new javax.swing.JLabel();
         jLabel10 = new javax.swing.JLabel();
         jLabel11 = new javax.swing.JLabel();
-        jLabel12 = new javax.swing.JLabel();
         txtFrdID = new javax.swing.JTextField();
         txtFrdName = new javax.swing.JTextField();
         txtFrdPhone = new javax.swing.JTextField();
-        jLabel13 = new javax.swing.JLabel();
-        txtFrdBankID = new javax.swing.JTextField();
-        jLabel14 = new javax.swing.JLabel();
-        txtFrdBank = new javax.swing.JTextField();
         jScrollPane4 = new javax.swing.JScrollPane();
         tableLoanInvoice = new javax.swing.JTable();
         btnFrdCancel = new javax.swing.JButton();
         btnFrdSave = new javax.swing.JButton();
         btnFrdEdit = new javax.swing.JButton();
         jLabel27 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
-        btnAllFriend = new javax.swing.JButton();
+        jLabel38 = new javax.swing.JLabel();
+        txtFrdNameBank = new javax.swing.JTextField();
+        jLabel39 = new javax.swing.JLabel();
+        txtFrdBankID = new javax.swing.JTextField();
+        jLabel40 = new javax.swing.JLabel();
+        txtFrdBank = new javax.swing.JTextField();
+        jLabel41 = new javax.swing.JLabel();
+        txtFrdAddr = new javax.swing.JTextField();
+        btnFrdDel = new javax.swing.JButton();
+        lblFrdExist = new javax.swing.JLabel();
+        jScrollPane8 = new javax.swing.JScrollPane();
+        treeLoan = new javax.swing.JTree();
+        btnAddFriend = new javax.swing.JButton();
         jPanel8 = new javax.swing.JPanel();
+        jTabbedPane2 = new javax.swing.JTabbedPane();
         jPanel6 = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -333,7 +514,7 @@ public class MainUI extends javax.swing.JFrame {
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 563, Short.MAX_VALUE)
+            .addGap(0, 560, Short.MAX_VALUE)
         );
 
         jTabbedPane1.addTab("Trang chủ", jPanel1);
@@ -565,13 +746,11 @@ public class MainUI extends javax.swing.JFrame {
         jLabel18.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         jLabel18.setText("Số điện thoại:");
 
-        jLabel19.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel19.setText("Địa chỉ:");
-
         txtCusID.setBackground(new java.awt.Color(240, 240, 240));
         txtCusID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtCusID.setText("00001");
         txtCusID.setBorder(null);
+        txtCusID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
         txtCusID.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtCusIDActionPerformed(evt);
@@ -582,27 +761,18 @@ public class MainUI extends javax.swing.JFrame {
         txtCusName.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtCusName.setText("Kiên");
         txtCusName.setBorder(null);
+        txtCusName.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusName.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtCusNameFocusGained(evt);
+            }
+        });
 
         txtCusPhone.setBackground(new java.awt.Color(240, 240, 240));
         txtCusPhone.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtCusPhone.setText("0986414972");
         txtCusPhone.setBorder(null);
-
-        jLabel20.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel20.setText("Tài khoản:");
-
-        txtCusBankID.setBackground(new java.awt.Color(240, 240, 240));
-        txtCusBankID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtCusBankID.setText("786 438 532 432");
-        txtCusBankID.setBorder(null);
-
-        jLabel21.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel21.setText("Ngân hàng:");
-
-        txtCusBank.setBackground(new java.awt.Color(240, 240, 240));
-        txtCusBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtCusBank.setText("VietinBank Nghệ An");
-        txtCusBank.setBorder(null);
+        txtCusPhone.setDisabledTextColor(new java.awt.Color(0, 0, 0));
 
         tableSalesInvoice.setAutoCreateRowSorter(true);
         tableSalesInvoice.setModel(new javax.swing.table.DefaultTableModel(
@@ -619,50 +789,134 @@ public class MainUI extends javax.swing.JFrame {
         jScrollPane5.setViewportView(tableSalesInvoice);
 
         btnCusCancel.setText("Huỷ bỏ");
+        btnCusCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCusCancelActionPerformed(evt);
+            }
+        });
 
         btnCusSave.setText("Lưu");
+        btnCusSave.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCusSaveActionPerformed(evt);
+            }
+        });
 
         btnCusEdit.setText("Chỉnh sửa thông tin");
+        btnCusEdit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCusEditActionPerformed(evt);
+            }
+        });
 
         jLabel25.setFont(new java.awt.Font("Segoe UI Semibold", 0, 12)); // NOI18N
         jLabel25.setText("Lịch sử mua hàng");
 
-        jTextField3.setBackground(new java.awt.Color(240, 240, 240));
-        jTextField3.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jTextField3.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
-        jTextField3.setBorder(null);
+        jLabel32.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel32.setText("Tên tài khoản:");
+
+        txtCusNameBank.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusNameBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusNameBank.setText("LAI DAC KIEN");
+        txtCusNameBank.setBorder(null);
+        txtCusNameBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusNameBank.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusNameBankActionPerformed(evt);
+            }
+        });
+
+        jLabel33.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel33.setText("Tài khoản:");
+
+        txtCusBankID.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusBankID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusBankID.setText("786 438 532 432");
+        txtCusBankID.setBorder(null);
+        txtCusBankID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel35.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel35.setText("Ngân hàng:");
+
+        txtCusBank.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusBank.setText("VietinBank Nghệ An");
+        txtCusBank.setBorder(null);
+        txtCusBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel37.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel37.setText("Địa chỉ:");
+
+        txtCusAddr.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusAddr.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusAddr.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
+        txtCusAddr.setBorder(null);
+        txtCusAddr.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusAddr.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusAddrActionPerformed(evt);
+            }
+        });
+
+        btnCusDel.setText("Xoá");
+        btnCusDel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCusDelActionPerformed(evt);
+            }
+        });
+
+        lblCusExist.setForeground(new java.awt.Color(255, 0, 0));
+        lblCusExist.setText("* Tên đã được sử dụng");
+
+        javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("JTree");
+        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("1       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("2       |   26/01/1999              |   30/01/1999               |   15.000.000               |  15.000.000                |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("basketball");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("soccer");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("football");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("hockey");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("3       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("101       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeSale.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
+        treeSale.setRootVisible(false);
+        jScrollPane10.setViewportView(treeSale);
 
         javax.swing.GroupLayout panelCusInforLayout = new javax.swing.GroupLayout(panelCusInfor);
         panelCusInfor.setLayout(panelCusInforLayout);
         panelCusInforLayout.setHorizontalGroup(
             panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(panelCusInforLayout.createSequentialGroup()
-                .addGap(31, 31, 31)
-                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jLabel16)
-                    .addComponent(jLabel17)
-                    .addComponent(jLabel18)
-                    .addComponent(jLabel20)
-                    .addComponent(jLabel19))
-                .addGap(23, 23, 23)
-                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(panelCusInforLayout.createSequentialGroup()
-                        .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addGroup(panelCusInforLayout.createSequentialGroup()
-                                    .addComponent(txtCusBankID, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(txtCusBank, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addComponent(txtCusName)
-                                .addComponent(txtCusPhone, javax.swing.GroupLayout.DEFAULT_SIZE, 458, Short.MAX_VALUE))
-                            .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addContainerGap(29, Short.MAX_VALUE))
-                    .addGroup(panelCusInforLayout.createSequentialGroup()
-                        .addComponent(txtCusID, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(btnCusEdit))))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelCusInforLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jScrollPane5))
@@ -670,6 +924,8 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(jLabel25, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnCusDel, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btnCusSave, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btnCusCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -677,6 +933,42 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel15)
                 .addGap(220, 220, 220))
+            .addGroup(panelCusInforLayout.createSequentialGroup()
+                .addGap(31, 31, 31)
+                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jLabel33)
+                    .addComponent(jLabel32)
+                    .addComponent(jLabel37)
+                    .addComponent(jLabel18)
+                    .addComponent(jLabel17)
+                    .addComponent(jLabel16))
+                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(panelCusInforLayout.createSequentialGroup()
+                        .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(panelCusInforLayout.createSequentialGroup()
+                                .addGap(23, 23, 23)
+                                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(txtCusNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusBankID, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusAddr, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusPhone, javax.swing.GroupLayout.PREFERRED_SIZE, 458, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusID, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(panelCusInforLayout.createSequentialGroup()
+                                        .addComponent(txtCusName, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addGap(18, 18, 18)
+                                        .addComponent(lblCusExist))))
+                            .addGroup(panelCusInforLayout.createSequentialGroup()
+                                .addGap(189, 189, 189)
+                                .addComponent(jLabel35, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(txtCusBank, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelCusInforLayout.createSequentialGroup()
+                        .addGap(380, 380, 380)
+                        .addComponent(btnCusEdit))))
+            .addGroup(panelCusInforLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane10))
         );
         panelCusInforLayout.setVerticalGroup(
             panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -691,36 +983,49 @@ public class MainUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtCusName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel17))
+                    .addComponent(jLabel17)
+                    .addComponent(lblCusExist))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel18)
                     .addComponent(txtCusPhone, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel20)
+                    .addComponent(jLabel32)
+                    .addComponent(txtCusNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel33)
                     .addComponent(txtCusBankID, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel21)
+                    .addComponent(jLabel35)
                     .addComponent(txtCusBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel19)
-                    .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(40, 40, 40)
+                    .addComponent(jLabel37)
+                    .addComponent(txtCusAddr, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel25)
                     .addComponent(btnCusCancel)
-                    .addComponent(btnCusSave))
-                .addGap(7, 7, 7)
-                .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 294, Short.MAX_VALUE))
+                    .addComponent(btnCusSave)
+                    .addComponent(btnCusDel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(jScrollPane10, javax.swing.GroupLayout.PREFERRED_SIZE, 263, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         editSearchCustomer.setToolTipText("Nhận tên nguồn hàng");
+        editSearchCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                editSearchCustomerKeyReleased(evt);
+            }
+        });
 
-        btnAllCustomer.setText("Tất cả");
-        btnAllCustomer.addActionListener(new java.awt.event.ActionListener() {
+        btnAddCustomer.setText("Thêm");
+        btnAddCustomer.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnAllCustomerActionPerformed(evt);
+                btnAddCustomerActionPerformed(evt);
             }
         });
 
@@ -728,6 +1033,11 @@ public class MainUI extends javax.swing.JFrame {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
+        });
+        listCustomer.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                listCustomerValueChanged(evt);
+            }
         });
         jScrollPane6.setViewportView(listCustomer);
 
@@ -742,7 +1052,7 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
                         .addComponent(editSearchCustomer)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(btnAllCustomer)))
+                        .addComponent(btnAddCustomer)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(panelCusInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 621, Short.MAX_VALUE)
                 .addContainerGap())
@@ -758,9 +1068,9 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(jPanel4Layout.createSequentialGroup()
                         .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(editSearchCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(btnAllCustomer))
+                            .addComponent(btnAddCustomer))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, 512, Short.MAX_VALUE)
+                        .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, 509, Short.MAX_VALUE)
                         .addContainerGap())))
         );
 
@@ -771,9 +1081,9 @@ public class MainUI extends javax.swing.JFrame {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
-        listSupplier.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                listSupplierMouseClicked(evt);
+        listSupplier.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                listSupplierValueChanged(evt);
             }
         });
         jScrollPane1.setViewportView(listSupplier);
@@ -804,8 +1114,9 @@ public class MainUI extends javax.swing.JFrame {
 
         txtSupID.setBackground(new java.awt.Color(240, 240, 240));
         txtSupID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupID.setText("00001");
         txtSupID.setBorder(null);
+        txtSupID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupID.setEnabled(false);
         txtSupID.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtSupIDActionPerformed(evt);
@@ -814,29 +1125,43 @@ public class MainUI extends javax.swing.JFrame {
 
         txtSupName.setBackground(new java.awt.Color(240, 240, 240));
         txtSupName.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupName.setText("Kiên");
         txtSupName.setBorder(null);
+        txtSupName.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupName.setEnabled(false);
+        txtSupName.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtSupNameFocusGained(evt);
+            }
+        });
 
         txtSupPhone.setBackground(new java.awt.Color(240, 240, 240));
         txtSupPhone.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupPhone.setText("0986414972");
         txtSupPhone.setBorder(null);
+        txtSupPhone.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupPhone.setEnabled(false);
+        txtSupPhone.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtSupPhoneActionPerformed(evt);
+            }
+        });
 
         jLabel6.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         jLabel6.setText("Tên tài khoản:");
 
         txtSupBankID.setBackground(new java.awt.Color(240, 240, 240));
         txtSupBankID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupBankID.setText("786 438 532 432");
         txtSupBankID.setBorder(null);
+        txtSupBankID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupBankID.setEnabled(false);
 
         jLabel7.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         jLabel7.setText("Ngân hàng:");
 
         txtSupBank.setBackground(new java.awt.Color(240, 240, 240));
         txtSupBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupBank.setText("VietinBank Nghệ An");
         txtSupBank.setBorder(null);
+        txtSupBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupBank.setEnabled(false);
 
         tableImportInvoice.setAutoCreateRowSorter(true);
         tableImportInvoice.setModel(new javax.swing.table.DefaultTableModel(
@@ -853,18 +1178,34 @@ public class MainUI extends javax.swing.JFrame {
         jScrollPane2.setViewportView(tableImportInvoice);
 
         btnSupCancel.setText("Huỷ bỏ");
+        btnSupCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSupCancelActionPerformed(evt);
+            }
+        });
 
         btnSupSave.setText("Lưu");
+        btnSupSave.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSupSaveActionPerformed(evt);
+            }
+        });
 
         btnSupEdit.setText("Chỉnh sửa thông tin");
+        btnSupEdit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSupEditActionPerformed(evt);
+            }
+        });
 
         jLabel26.setFont(new java.awt.Font("Segoe UI Semibold", 0, 12)); // NOI18N
         jLabel26.setText("Lịch sử nhập hàng");
 
         txtSupAddr.setBackground(new java.awt.Color(240, 240, 240));
         txtSupAddr.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtSupAddr.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
         txtSupAddr.setBorder(null);
+        txtSupAddr.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupAddr.setEnabled(false);
         txtSupAddr.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtSupAddrActionPerformed(evt);
@@ -874,15 +1215,71 @@ public class MainUI extends javax.swing.JFrame {
         jLabel29.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         jLabel29.setText("Tài khoản:");
 
-        txtNameBank.setBackground(new java.awt.Color(240, 240, 240));
-        txtNameBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtNameBank.setText("LAI DAC KIEN");
-        txtNameBank.setBorder(null);
-        txtNameBank.addActionListener(new java.awt.event.ActionListener() {
+        txtSupNameBank.setBackground(new java.awt.Color(240, 240, 240));
+        txtSupNameBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtSupNameBank.setBorder(null);
+        txtSupNameBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSupNameBank.setEnabled(false);
+        txtSupNameBank.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                txtNameBankActionPerformed(evt);
+                txtSupNameBankActionPerformed(evt);
             }
         });
+
+        lblSupExist.setForeground(new java.awt.Color(255, 0, 0));
+        lblSupExist.setText("* Tên đã được sử dụng");
+
+        btnSupDel.setText("Xoá");
+        btnSupDel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSupDelActionPerformed(evt);
+            }
+        });
+
+        treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("JTree");
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("1       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("2       |   26/01/1999              |   30/01/1999               |   15.000.000               |  15.000.000                |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("basketball");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("soccer");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("football");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("hockey");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("3       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("101       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeImport.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
+        treeImport.setRootVisible(false);
+        jScrollPane9.setViewportView(treeImport);
 
         javax.swing.GroupLayout panelSupInforLayout = new javax.swing.GroupLayout(panelSupInfor);
         panelSupInfor.setLayout(panelSupInforLayout);
@@ -899,6 +1296,8 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(jLabel26)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnSupDel, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btnSupSave, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btnSupCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -921,12 +1320,14 @@ public class MainUI extends javax.swing.JFrame {
                                 .addComponent(btnSupEdit))
                             .addGroup(panelSupInforLayout.createSequentialGroup()
                                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                        .addComponent(txtSupName)
-                                        .addComponent(txtSupPhone, javax.swing.GroupLayout.DEFAULT_SIZE, 458, Short.MAX_VALUE))
-                                    .addComponent(txtNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtSupPhone, javax.swing.GroupLayout.PREFERRED_SIZE, 458, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtSupNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(txtSupBankID, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(txtSupAddr, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(txtSupAddr, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(panelSupInforLayout.createSequentialGroup()
+                                        .addComponent(txtSupName, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addGap(18, 18, 18)
+                                        .addComponent(lblSupExist)))
                                 .addContainerGap(26, Short.MAX_VALUE))))
                     .addGroup(panelSupInforLayout.createSequentialGroup()
                         .addGap(189, 189, 189)
@@ -934,6 +1335,9 @@ public class MainUI extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(txtSupBank, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(0, 0, Short.MAX_VALUE))))
+            .addGroup(panelSupInforLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane9))
         );
         panelSupInforLayout.setVerticalGroup(
             panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -948,7 +1352,8 @@ public class MainUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtSupName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel3))
+                    .addComponent(jLabel3)
+                    .addComponent(lblSupExist))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel4)
@@ -956,7 +1361,7 @@ public class MainUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel6)
-                    .addComponent(txtNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(txtSupNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel29)
@@ -971,15 +1376,18 @@ public class MainUI extends javax.swing.JFrame {
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnSupCancel)
                     .addComponent(btnSupSave)
-                    .addComponent(jLabel26))
-                .addGap(7, 7, 7)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE))
+                    .addComponent(jLabel26)
+                    .addComponent(btnSupDel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(jScrollPane9, javax.swing.GroupLayout.PREFERRED_SIZE, 263, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
-        btnAllSupplier.setText("Tất cả");
-        btnAllSupplier.addActionListener(new java.awt.event.ActionListener() {
+        btnAddSupplier.setText("Thêm");
+        btnAddSupplier.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnAllSupplierActionPerformed(evt);
+                btnAddSupplierActionPerformed(evt);
             }
         });
 
@@ -994,7 +1402,7 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
                         .addComponent(editSearchSupplier)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(btnAllSupplier)))
+                        .addComponent(btnAddSupplier)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(panelSupInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 621, Short.MAX_VALUE)
                 .addContainerGap())
@@ -1010,9 +1418,9 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(editSearchSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(btnAllSupplier))
+                            .addComponent(btnAddSupplier))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 512, Short.MAX_VALUE)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 516, Short.MAX_VALUE)
                         .addContainerGap())))
         );
 
@@ -1023,9 +1431,19 @@ public class MainUI extends javax.swing.JFrame {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
+        listFriend.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                listFriendValueChanged(evt);
+            }
+        });
         jScrollPane3.setViewportView(listFriend);
 
         editSearchFriend.setToolTipText("Nhận tên nguồn hàng");
+        editSearchFriend.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                editSearchFriendKeyReleased(evt);
+            }
+        });
 
         panelFrdInfor.setPreferredSize(new java.awt.Dimension(618, 541));
 
@@ -1041,13 +1459,11 @@ public class MainUI extends javax.swing.JFrame {
         jLabel11.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         jLabel11.setText("Số điện thoại:");
 
-        jLabel12.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel12.setText("Địa chỉ:");
-
         txtFrdID.setBackground(new java.awt.Color(240, 240, 240));
         txtFrdID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtFrdID.setText("00001");
         txtFrdID.setBorder(null);
+        txtFrdID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
         txtFrdID.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtFrdIDActionPerformed(evt);
@@ -1058,27 +1474,18 @@ public class MainUI extends javax.swing.JFrame {
         txtFrdName.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtFrdName.setText("Kiên");
         txtFrdName.setBorder(null);
+        txtFrdName.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtFrdName.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtFrdNameFocusGained(evt);
+            }
+        });
 
         txtFrdPhone.setBackground(new java.awt.Color(240, 240, 240));
         txtFrdPhone.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
         txtFrdPhone.setText("0986414972");
         txtFrdPhone.setBorder(null);
-
-        jLabel13.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel13.setText("Tài khoản:");
-
-        txtFrdBankID.setBackground(new java.awt.Color(240, 240, 240));
-        txtFrdBankID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtFrdBankID.setText("786 438 532 432");
-        txtFrdBankID.setBorder(null);
-
-        jLabel14.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jLabel14.setText("Ngân hàng:");
-
-        txtFrdBank.setBackground(new java.awt.Color(240, 240, 240));
-        txtFrdBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        txtFrdBank.setText("VietinBank Nghệ An");
-        txtFrdBank.setBorder(null);
+        txtFrdPhone.setDisabledTextColor(new java.awt.Color(0, 0, 0));
 
         tableLoanInvoice.setAutoCreateRowSorter(true);
         tableLoanInvoice.setModel(new javax.swing.table.DefaultTableModel(
@@ -1092,21 +1499,133 @@ public class MainUI extends javax.swing.JFrame {
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
+        tableLoanInvoice.setAutoscrolls(false);
         jScrollPane4.setViewportView(tableLoanInvoice);
 
         btnFrdCancel.setText("Huỷ bỏ");
+        btnFrdCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFrdCancelActionPerformed(evt);
+            }
+        });
 
         btnFrdSave.setText("Lưu");
+        btnFrdSave.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFrdSaveActionPerformed(evt);
+            }
+        });
 
         btnFrdEdit.setText("Chỉnh sửa thông tin");
+        btnFrdEdit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFrdEditActionPerformed(evt);
+            }
+        });
 
         jLabel27.setFont(new java.awt.Font("Segoe UI Semibold", 0, 12)); // NOI18N
         jLabel27.setText("Lịch sử giao dịch");
 
-        jTextField1.setBackground(new java.awt.Color(240, 240, 240));
-        jTextField1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
-        jTextField1.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
-        jTextField1.setBorder(null);
+        jLabel38.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel38.setText("Tên tài khoản:");
+
+        txtFrdNameBank.setBackground(new java.awt.Color(240, 240, 240));
+        txtFrdNameBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtFrdNameBank.setText("LAI DAC KIEN");
+        txtFrdNameBank.setBorder(null);
+        txtFrdNameBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtFrdNameBank.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtFrdNameBankActionPerformed(evt);
+            }
+        });
+
+        jLabel39.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel39.setText("Tài khoản:");
+
+        txtFrdBankID.setBackground(new java.awt.Color(240, 240, 240));
+        txtFrdBankID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtFrdBankID.setText("786 438 532 432");
+        txtFrdBankID.setBorder(null);
+        txtFrdBankID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel40.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel40.setText("Ngân hàng:");
+
+        txtFrdBank.setBackground(new java.awt.Color(240, 240, 240));
+        txtFrdBank.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtFrdBank.setText("VietinBank Nghệ An");
+        txtFrdBank.setBorder(null);
+        txtFrdBank.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel41.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel41.setText("Địa chỉ:");
+
+        txtFrdAddr.setBackground(new java.awt.Color(240, 240, 240));
+        txtFrdAddr.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtFrdAddr.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
+        txtFrdAddr.setBorder(null);
+        txtFrdAddr.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtFrdAddr.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtFrdAddrActionPerformed(evt);
+            }
+        });
+
+        btnFrdDel.setText("Xoá");
+        btnFrdDel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFrdDelActionPerformed(evt);
+            }
+        });
+
+        lblFrdExist.setForeground(new java.awt.Color(255, 0, 0));
+        lblFrdExist.setText("* Tên đã được sử dụng");
+
+        treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("JTree");
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("1       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("2       |   26/01/1999              |   30/01/1999               |   15.000.000               |  15.000.000                |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("basketball");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("soccer");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("football");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("hockey");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("3       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("101       |   26/01/1999               |   30/01/1999              |   15.000.000               |  15.000.000               |");
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("blue");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("violet");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("red");
+        treeNode2.add(treeNode3);
+        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("yellow");
+        treeNode2.add(treeNode3);
+        treeNode1.add(treeNode2);
+        treeLoan.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
+        treeLoan.setRootVisible(false);
+        jScrollPane8.setViewportView(treeLoan);
 
         javax.swing.GroupLayout panelFrdInforLayout = new javax.swing.GroupLayout(panelFrdInfor);
         panelFrdInfor.setLayout(panelFrdInforLayout);
@@ -1116,32 +1635,6 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane4, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(panelFrdInforLayout.createSequentialGroup()
-                        .addGap(21, 21, 21)
-                        .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jLabel9)
-                            .addComponent(jLabel10)
-                            .addComponent(jLabel11)
-                            .addComponent(jLabel13)
-                            .addComponent(jLabel12))
-                        .addGap(23, 23, 23)
-                        .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(panelFrdInforLayout.createSequentialGroup()
-                                .addComponent(txtFrdID, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(btnFrdEdit))
-                            .addGroup(panelFrdInforLayout.createSequentialGroup()
-                                .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addGroup(panelFrdInforLayout.createSequentialGroup()
-                                        .addComponent(txtFrdBankID, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(txtFrdBank, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addComponent(txtFrdName)
-                                    .addComponent(txtFrdPhone, javax.swing.GroupLayout.DEFAULT_SIZE, 458, Short.MAX_VALUE)
-                                    .addComponent(jTextField1))
-                                .addContainerGap(29, Short.MAX_VALUE))))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
                         .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 209, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1149,9 +1642,45 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
                         .addComponent(jLabel27)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(btnFrdDel, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(btnFrdSave, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(btnFrdCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                        .addComponent(btnFrdCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(panelFrdInforLayout.createSequentialGroup()
+                        .addGap(21, 21, 21)
+                        .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jLabel39)
+                            .addComponent(jLabel38)
+                            .addComponent(jLabel41)
+                            .addComponent(jLabel11)
+                            .addComponent(jLabel10)
+                            .addComponent(jLabel9))
+                        .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(panelFrdInforLayout.createSequentialGroup()
+                                .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addGroup(panelFrdInforLayout.createSequentialGroup()
+                                        .addGap(23, 23, 23)
+                                        .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(txtFrdNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(txtFrdBankID, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(txtFrdAddr, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(txtFrdPhone, javax.swing.GroupLayout.PREFERRED_SIZE, 458, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(txtFrdID, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addGroup(panelFrdInforLayout.createSequentialGroup()
+                                                .addComponent(txtFrdName, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addGap(18, 18, 18)
+                                                .addComponent(lblFrdExist))))
+                                    .addGroup(panelFrdInforLayout.createSequentialGroup()
+                                        .addGap(189, 189, 189)
+                                        .addComponent(jLabel40, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(txtFrdBank, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
+                                .addGap(380, 380, 380)
+                                .addComponent(btnFrdEdit))))
+                    .addComponent(jScrollPane8)))
         );
         panelFrdInforLayout.setVerticalGroup(
             panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1166,34 +1695,42 @@ public class MainUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtFrdName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel10))
+                    .addComponent(jLabel10)
+                    .addComponent(lblFrdExist))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel11)
                     .addComponent(txtFrdPhone, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel13)
+                    .addComponent(jLabel38)
+                    .addComponent(txtFrdNameBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel39)
                     .addComponent(txtFrdBankID, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel14)
+                    .addComponent(jLabel40)
                     .addComponent(txtFrdBank, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel12)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(40, 40, 40)
+                    .addComponent(jLabel41)
+                    .addComponent(txtFrdAddr, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnFrdSave)
                     .addComponent(btnFrdCancel)
-                    .addComponent(jLabel27))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 7, Short.MAX_VALUE)
-                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 296, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jLabel27)
+                    .addComponent(btnFrdDel))
+                .addGap(13, 13, 13)
+                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(jScrollPane8, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
         );
 
-        btnAllFriend.setText("Tất cả");
-        btnAllFriend.addActionListener(new java.awt.event.ActionListener() {
+        btnAddFriend.setText("Thêm");
+        btnAddFriend.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnAllFriendActionPerformed(evt);
+                btnAddFriendActionPerformed(evt);
             }
         });
 
@@ -1208,7 +1745,7 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel9Layout.createSequentialGroup()
                         .addComponent(editSearchFriend)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(btnAllFriend)))
+                        .addComponent(btnAddFriend)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(panelFrdInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 621, Short.MAX_VALUE)
                 .addContainerGap())
@@ -1224,7 +1761,7 @@ public class MainUI extends javax.swing.JFrame {
                     .addGroup(jPanel9Layout.createSequentialGroup()
                         .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(editSearchFriend, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(btnAllFriend))
+                            .addComponent(btnAddFriend))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 511, Short.MAX_VALUE)
                         .addContainerGap())))
@@ -1234,21 +1771,15 @@ public class MainUI extends javax.swing.JFrame {
         jPanel5.setLayout(jPanel5Layout);
         jPanel5Layout.setHorizontalGroup(
             jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 865, Short.MAX_VALUE)
-            .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(jPanel5Layout.createSequentialGroup()
-                    .addGap(0, 0, Short.MAX_VALUE)
-                    .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGap(0, 0, Short.MAX_VALUE)))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel5Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
         jPanel5Layout.setVerticalGroup(
             jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 563, Short.MAX_VALUE)
-            .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(jPanel5Layout.createSequentialGroup()
-                    .addGap(0, 0, Short.MAX_VALUE)
-                    .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGap(0, 0, Short.MAX_VALUE)))
+            .addGroup(jPanel5Layout.createSequentialGroup()
+                .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("Đối tác", jPanel5);
@@ -1257,11 +1788,17 @@ public class MainUI extends javax.swing.JFrame {
         jPanel8.setLayout(jPanel8Layout);
         jPanel8Layout.setHorizontalGroup(
             jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 865, Short.MAX_VALUE)
+            .addGroup(jPanel8Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jTabbedPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 845, Short.MAX_VALUE)
+                .addContainerGap())
         );
         jPanel8Layout.setVerticalGroup(
             jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 563, Short.MAX_VALUE)
+            .addGroup(jPanel8Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jTabbedPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 538, Short.MAX_VALUE)
+                .addContainerGap())
         );
 
         jTabbedPane1.addTab("Hoá đơn", jPanel8);
@@ -1274,7 +1811,7 @@ public class MainUI extends javax.swing.JFrame {
         );
         jPanel6Layout.setVerticalGroup(
             jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 563, Short.MAX_VALUE)
+            .addGap(0, 560, Short.MAX_VALUE)
         );
 
         jTabbedPane1.addTab("Thống kê", jPanel6);
@@ -1284,12 +1821,13 @@ public class MainUI extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
                 .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 870, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 0, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 590, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
         );
@@ -1297,10 +1835,46 @@ public class MainUI extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void btnAllSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAllSupplierActionPerformed
+    private void btnAddSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddSupplierActionPerformed
         // TODO add your handling code here:
-//        listSupplier.
-    }//GEN-LAST:event_btnAllSupplierActionPerformed
+        listSupplier.setSelectedIndex(-1);
+
+        setEditingMode(true);
+        btnSupDel.setVisible(false);
+        isAdding = true;
+        btnSupSave.setText("Thêm");
+
+        txtSupName.setEnabled(true);
+        txtSupName.setBackground(Color.WHITE);
+        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupName.setText("");
+
+        txtSupPhone.setEnabled(true);
+        txtSupPhone.setBackground(Color.WHITE);
+        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupPhone.setText("");
+
+        txtSupNameBank.setEnabled(true);
+        txtSupNameBank.setBackground(Color.WHITE);
+        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupNameBank.setText("");
+
+        txtSupBankID.setEnabled(true);
+        txtSupBankID.setBackground(Color.WHITE);
+        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupBankID.setText("");
+
+        txtSupBank.setEnabled(true);
+        txtSupBank.setBackground(Color.WHITE);
+        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupBank.setText("");
+
+        txtSupAddr.setEnabled(true);
+        txtSupAddr.setBackground(Color.WHITE);
+        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupAddr.setText("");
+
+    }//GEN-LAST:event_btnAddSupplierActionPerformed
 
     private void txtSupIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupIDActionPerformed
         // TODO add your handling code here:
@@ -1310,17 +1884,89 @@ public class MainUI extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_txtFrdIDActionPerformed
 
-    private void btnAllFriendActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAllFriendActionPerformed
+    private void btnAddFriendActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddFriendActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_btnAllFriendActionPerformed
+        listFriend.setSelectedIndex(-1);
+
+        setEditingMode(true);
+        btnFrdDel.setVisible(false);
+        isAdding = true;
+        btnFrdSave.setText("Thêm");
+
+        txtFrdName.setEnabled(true);
+        txtFrdName.setBackground(Color.WHITE);
+        txtFrdName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdName.setText("");
+
+        txtFrdPhone.setEnabled(true);
+        txtFrdPhone.setBackground(Color.WHITE);
+        txtFrdPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdPhone.setText("");
+
+        txtFrdNameBank.setEnabled(true);
+        txtFrdNameBank.setBackground(Color.WHITE);
+        txtFrdNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdNameBank.setText("");
+
+        txtFrdBankID.setEnabled(true);
+        txtFrdBankID.setBackground(Color.WHITE);
+        txtFrdBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdBankID.setText("");
+
+        txtFrdBank.setEnabled(true);
+        txtFrdBank.setBackground(Color.WHITE);
+        txtFrdBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdBank.setText("");
+
+        txtFrdAddr.setEnabled(true);
+        txtFrdAddr.setBackground(Color.WHITE);
+        txtFrdAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtFrdAddr.setText("");
+    }//GEN-LAST:event_btnAddFriendActionPerformed
 
     private void txtCusIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIDActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_txtCusIDActionPerformed
 
-    private void btnAllCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAllCustomerActionPerformed
+    private void btnAddCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddCustomerActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_btnAllCustomerActionPerformed
+        listCustomer.setSelectedIndex(-1);
+
+        setEditingMode(true);
+        btnCusDel.setVisible(false);
+        isAdding = true;
+        btnCusSave.setText("Thêm");
+
+        txtCusName.setEnabled(true);
+        txtCusName.setBackground(Color.WHITE);
+        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusName.setText("");
+
+        txtCusPhone.setEnabled(true);
+        txtCusPhone.setBackground(Color.WHITE);
+        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusPhone.setText("");
+
+        txtCusNameBank.setEnabled(true);
+        txtCusNameBank.setBackground(Color.WHITE);
+        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusNameBank.setText("");
+
+        txtCusBankID.setEnabled(true);
+        txtCusBankID.setBackground(Color.WHITE);
+        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusBankID.setText("");
+
+        txtCusBank.setEnabled(true);
+        txtCusBank.setBackground(Color.WHITE);
+        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusBank.setText("");
+
+        txtCusAddr.setEnabled(true);
+        txtCusAddr.setBackground(Color.WHITE);
+        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusAddr.setText("");
+    }//GEN-LAST:event_btnAddCustomerActionPerformed
 
     private void txtSupAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupAddrActionPerformed
         // TODO add your handling code here:
@@ -1413,39 +2059,670 @@ public class MainUI extends javax.swing.JFrame {
         dataProductChanged();
     }//GEN-LAST:event_cboxCategoryActionPerformed
 
-    private void listSupplierMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listSupplierMouseClicked
-        // TODO add your handling code here:
-        String supplierName = listSupplier.getSelectedValue();
-        Supplier s = EntityManager.supplierDAO.getSupplier(supplierName);
-        txtSupID.setText(Integer.toString(s.getId()));
-        txtSupName.setText(s.getName());
-        txtSupPhone.setText(s.getPhoneNumbers().get(0));
-        txtNameBank.setText(s.getPayments().get(0).getName());
-        txtSupBankID.setText(s.getPayments().get(0).getBankID());
-        txtSupBank.setText(s.getPayments().get(0).getBank());
-        txtSupAddr.setText(s.getAddresses().get(0).toString());
-    }//GEN-LAST:event_listSupplierMouseClicked
-
     private void editSearchSupplierKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchSupplierKeyReleased
         // TODO add your handling code here:
-        List<String> searchList = new ArrayList<>();
+        Set<String> searchSet = new HashSet();
         String[] keyISO = editSearchSupplier.getText().toLowerCase().trim().split(" ");
         for (String pn
                 : supplierNameList) {
             for (String text : keyISO) {
                 if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
-                    searchList.add(pn);
+                    searchSet.add(pn);
                 }
             }
         }
         supplierNameModel.clear();
-        supplierNameModel.addAll(searchList);
+        supplierNameModel.addAll(searchSet);
 //        lis
     }//GEN-LAST:event_editSearchSupplierKeyReleased
 
-    private void txtNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtNameBankActionPerformed
+    private void txtSupNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupNameBankActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_txtNameBankActionPerformed
+    }//GEN-LAST:event_txtSupNameBankActionPerformed
+
+    private void txtCusNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusNameBankActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusNameBankActionPerformed
+
+    private void txtCusAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusAddrActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusAddrActionPerformed
+
+    private void txtFrdNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdNameBankActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtFrdNameBankActionPerformed
+
+    private void txtFrdAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdAddrActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtFrdAddrActionPerformed
+
+    private void txtSupPhoneActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupPhoneActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSupPhoneActionPerformed
+
+    private void btnSupEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupEditActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(true);
+
+        supId = EntityManager.supplierDAO.getSupplierIdbyName(txtSupName.getText());
+
+        btnSupSave.setText("Lưu");
+
+        txtSupName.setEnabled(true);
+        txtSupName.setBackground(Color.WHITE);
+        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupPhone.setEnabled(true);
+        txtSupPhone.setBackground(Color.WHITE);
+        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupNameBank.setEnabled(true);
+        txtSupNameBank.setBackground(Color.WHITE);
+        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupBankID.setEnabled(true);
+        txtSupBankID.setBackground(Color.WHITE);
+        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupBank.setEnabled(true);
+        txtSupBank.setBackground(Color.WHITE);
+        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupAddr.setEnabled(true);
+        txtSupAddr.setBackground(Color.WHITE);
+        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+    }//GEN-LAST:event_btnSupEditActionPerformed
+
+    private void btnSupCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupCancelActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(false);
+
+        showSupplier(listSupplier.getSelectedValue());
+
+        txtSupName.setEnabled(false);
+        txtSupName.setBackground(new Color(240, 240, 240));
+        txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupPhone.setEnabled(false);
+        txtSupPhone.setBackground(new Color(240, 240, 240));
+        txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupNameBank.setEnabled(false);
+        txtSupNameBank.setBackground(new Color(240, 240, 240));
+        txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupBankID.setEnabled(false);
+        txtSupBankID.setBackground(new Color(240, 240, 240));
+        txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupBank.setEnabled(false);
+        txtSupBank.setBackground(new Color(240, 240, 240));
+        txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupAddr.setEnabled(false);
+        txtSupAddr.setBackground(new Color(240, 240, 240));
+        txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnSupCancelActionPerformed
+
+    private void btnSupSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupSaveActionPerformed
+        // TODO add your handling code here:
+        if (!isAdding) {
+            try {
+                EntityManager.supplierDAO.updateSupplier(supId, txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
+                txtSupName.setEnabled(false);
+                txtSupName.setBackground(new Color(240, 240, 240));
+                txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupPhone.setEnabled(false);
+                txtSupPhone.setBackground(new Color(240, 240, 240));
+                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupNameBank.setEnabled(false);
+                txtSupNameBank.setBackground(new Color(240, 240, 240));
+                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBankID.setEnabled(false);
+                txtSupBankID.setBackground(new Color(240, 240, 240));
+                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBank.setEnabled(false);
+                txtSupBank.setBackground(new Color(240, 240, 240));
+                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupAddr.setEnabled(false);
+                txtSupAddr.setBackground(new Color(240, 240, 240));
+                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+                supplierNameModel.removeAllElements();
+                supplierNameModel.addAll(supplierNameList);
+//            listSupplier.setModel(supplierNameModel);
+                listSupplier.setSelectedValue(txtSupName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblSupExist.setVisible(true);
+            }
+        } else {
+            try {
+                EntityManager.supplierDAO.insertProduct(txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
+                txtSupName.setEnabled(false);
+                txtSupName.setBackground(new Color(240, 240, 240));
+                txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupPhone.setEnabled(false);
+                txtSupPhone.setBackground(new Color(240, 240, 240));
+                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupNameBank.setEnabled(false);
+                txtSupNameBank.setBackground(new Color(240, 240, 240));
+                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBankID.setEnabled(false);
+                txtSupBankID.setBackground(new Color(240, 240, 240));
+                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBank.setEnabled(false);
+                txtSupBank.setBackground(new Color(240, 240, 240));
+                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupAddr.setEnabled(false);
+                txtSupAddr.setBackground(new Color(240, 240, 240));
+                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+                supplierNameModel.removeAllElements();
+                supplierNameModel.addAll(supplierNameList);
+
+                listSupplier.setSelectedValue(txtSupName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblSupExist.setVisible(true);
+            }
+        }
+    }//GEN-LAST:event_btnSupSaveActionPerformed
+
+    private void txtSupNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtSupNameFocusGained
+        // TODO add your handling code here:
+        lblSupExist.setVisible(false);
+    }//GEN-LAST:event_txtSupNameFocusGained
+
+    private void btnCusDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusDelActionPerformed
+        try {
+            // TODO add your handling code here:
+            EntityManager.customerDAO.removeCustomer(cusId);
+
+            customersNameList = EntityManager.customerDAO.getCustomersName();
+            customerNameModel.removeAllElements();
+            customerNameModel.addAll(customersNameList);
+            txtCusName.setEnabled(false);
+            txtCusName.setBackground(new Color(240, 240, 240));
+            txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusPhone.setEnabled(false);
+            txtCusPhone.setBackground(new Color(240, 240, 240));
+            txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusNameBank.setEnabled(false);
+            txtCusNameBank.setBackground(new Color(240, 240, 240));
+            txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusBankID.setEnabled(false);
+            txtCusBankID.setBackground(new Color(240, 240, 240));
+            txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusBank.setEnabled(false);
+            txtCusBank.setBackground(new Color(240, 240, 240));
+            txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusAddr.setEnabled(false);
+            txtCusAddr.setBackground(new Color(240, 240, 240));
+            txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+            setEditingMode(false);
+            showCustomer(null);
+        } catch (Exception ex) {
+            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(rootPane, "Khách hàng đã có hoá đơn, không thể xoá");
+        }
+    }//GEN-LAST:event_btnCusDelActionPerformed
+
+    private void btnSupDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupDelActionPerformed
+        try {
+            // TODO add your handling code here:
+            EntityManager.supplierDAO.removeSupplier(supId);
+
+            supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+            supplierNameModel.removeAllElements();
+            supplierNameModel.addAll(supplierNameList);
+            setEditingMode(false);
+            txtSupName.setEnabled(false);
+            txtSupName.setBackground(new Color(240, 240, 240));
+            txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupPhone.setEnabled(false);
+            txtSupPhone.setBackground(new Color(240, 240, 240));
+            txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupNameBank.setEnabled(false);
+            txtSupNameBank.setBackground(new Color(240, 240, 240));
+            txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupBankID.setEnabled(false);
+            txtSupBankID.setBackground(new Color(240, 240, 240));
+            txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupBank.setEnabled(false);
+            txtSupBank.setBackground(new Color(240, 240, 240));
+            txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupAddr.setEnabled(false);
+            txtSupAddr.setBackground(new Color(240, 240, 240));
+            txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+            showSupplier(null);
+        } catch (Exception ex) {
+            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(rootPane, "Nhà cung cấp đã có hoá đơn, không thể xoá");
+        }
+
+    }//GEN-LAST:event_btnSupDelActionPerformed
+
+    private void editSearchCustomerKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchCustomerKeyReleased
+        // TODO add your handling code here:
+        Set<String> searchSet = new HashSet();
+        String[] keyISO = editSearchCustomer.getText().toLowerCase().trim().split(" ");
+        for (String pn
+                : customersNameList) {
+            for (String text : keyISO) {
+                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
+                    searchSet.add(pn);
+                }
+            }
+        }
+        customerNameModel.clear();
+        customerNameModel.addAll(searchSet);
+    }//GEN-LAST:event_editSearchCustomerKeyReleased
+
+    private void editSearchFriendKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchFriendKeyReleased
+        // TODO add your handling code here:
+        Set<String> searchSet = new HashSet<String>();
+        String[] keyISO = editSearchFriend.getText().toLowerCase().trim().split(" ");
+        for (String pn
+                : friendsNameList) {
+            for (String text : keyISO) {
+                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
+                    searchSet.add(pn);
+                }
+            }
+        }
+        friendsNameModel.clear();
+        friendsNameModel.addAll(new ArrayList<String>(searchSet));
+    }//GEN-LAST:event_editSearchFriendKeyReleased
+
+    private void btnCusEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusEditActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(true);
+
+        cusId = EntityManager.customerDAO.getCustomerIdbyName(txtCusName.getText());
+
+        btnCusSave.setText("Lưu");
+
+        txtCusName.setEnabled(true);
+        txtCusName.setBackground(Color.WHITE);
+        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusPhone.setEnabled(true);
+        txtCusPhone.setBackground(Color.WHITE);
+        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusNameBank.setEnabled(true);
+        txtCusNameBank.setBackground(Color.WHITE);
+        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusBankID.setEnabled(true);
+        txtCusBankID.setBackground(Color.WHITE);
+        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusBank.setEnabled(true);
+        txtCusBank.setBackground(Color.WHITE);
+        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusAddr.setEnabled(true);
+        txtCusAddr.setBackground(Color.WHITE);
+        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+    }//GEN-LAST:event_btnCusEditActionPerformed
+
+    private void btnFrdEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdEditActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(true);
+
+        friendId = EntityManager.friendAgencyDAO.getFriendIdbyName(txtFrdName.getText());
+
+        btnFrdSave.setText("Lưu");
+
+        txtFrdName.setEnabled(true);
+        txtFrdName.setBackground(Color.WHITE);
+        txtFrdName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtFrdPhone.setEnabled(true);
+        txtFrdPhone.setBackground(Color.WHITE);
+        txtFrdPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtFrdNameBank.setEnabled(true);
+        txtFrdNameBank.setBackground(Color.WHITE);
+        txtFrdNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtFrdBankID.setEnabled(true);
+        txtFrdBankID.setBackground(Color.WHITE);
+        txtFrdBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtFrdBank.setEnabled(true);
+        txtFrdBank.setBackground(Color.WHITE);
+        txtFrdBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtFrdAddr.setEnabled(true);
+        txtFrdAddr.setBackground(Color.WHITE);
+        txtFrdAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+    }//GEN-LAST:event_btnFrdEditActionPerformed
+
+    private void btnFrdDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdDelActionPerformed
+        try {
+            // TODO add your handling code here:
+            EntityManager.friendAgencyDAO.removeFriend(friendId);
+
+            friendsNameList = EntityManager.friendAgencyDAO.getFriendAgencysName();
+            friendsNameModel.removeAllElements();
+            friendsNameModel.addAll(friendsNameList);
+            txtFrdName.setEnabled(false);
+            txtFrdName.setBackground(new Color(240, 240, 240));
+            txtFrdName.setBorder(BorderFactory.createEmptyBorder());
+
+            txtFrdPhone.setEnabled(false);
+            txtFrdPhone.setBackground(new Color(240, 240, 240));
+            txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
+
+            txtFrdNameBank.setEnabled(false);
+            txtFrdNameBank.setBackground(new Color(240, 240, 240));
+            txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtFrdBankID.setEnabled(false);
+            txtFrdBankID.setBackground(new Color(240, 240, 240));
+            txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
+
+            txtFrdBank.setEnabled(false);
+            txtFrdBank.setBackground(new Color(240, 240, 240));
+            txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtFrdAddr.setEnabled(false);
+            txtFrdAddr.setBackground(new Color(240, 240, 240));
+            txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
+            setEditingMode(false);
+            showFriend(null);
+        } catch (Exception ex) {
+            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(rootPane, "Đại lý bạn đã có hoá đơn, không thể xoá");
+        }
+    }//GEN-LAST:event_btnFrdDelActionPerformed
+
+    private void btnCusSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusSaveActionPerformed
+        // TODO add your handling code here:
+        if (!isAdding) {
+            try {
+                EntityManager.customerDAO.updateCustomer(cusId, txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
+                txtCusName.setEnabled(false);
+                txtCusName.setBackground(new Color(240, 240, 240));
+                txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusPhone.setEnabled(false);
+                txtCusPhone.setBackground(new Color(240, 240, 240));
+                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusNameBank.setEnabled(false);
+                txtCusNameBank.setBackground(new Color(240, 240, 240));
+                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBankID.setEnabled(false);
+                txtCusBankID.setBackground(new Color(240, 240, 240));
+                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBank.setEnabled(false);
+                txtCusBank.setBackground(new Color(240, 240, 240));
+                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusAddr.setEnabled(false);
+                txtCusAddr.setBackground(new Color(240, 240, 240));
+                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                customersNameList = EntityManager.customerDAO.getCustomersName();
+                customerNameModel.removeAllElements();
+                customerNameModel.addAll(customersNameList);
+                listCustomer.setSelectedValue(txtCusName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblCusExist.setVisible(true);
+            }
+        } else {
+            try {
+                EntityManager.customerDAO.insertCustomer(txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
+                txtCusName.setEnabled(false);
+                txtCusName.setBackground(new Color(240, 240, 240));
+                txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusPhone.setEnabled(false);
+                txtCusPhone.setBackground(new Color(240, 240, 240));
+                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusNameBank.setEnabled(false);
+                txtCusNameBank.setBackground(new Color(240, 240, 240));
+                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBankID.setEnabled(false);
+                txtCusBankID.setBackground(new Color(240, 240, 240));
+                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBank.setEnabled(false);
+                txtCusBank.setBackground(new Color(240, 240, 240));
+                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusAddr.setEnabled(false);
+                txtCusAddr.setBackground(new Color(240, 240, 240));
+                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                customersNameList = EntityManager.customerDAO.getCustomersName();
+                customerNameModel.removeAllElements();
+                customerNameModel.addAll(customersNameList);
+                listCustomer.setSelectedValue(txtCusName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblCusExist.setVisible(true);
+            }
+        }
+    }//GEN-LAST:event_btnCusSaveActionPerformed
+
+    private void txtCusNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusNameFocusGained
+        // TODO add your handling code here:
+        lblCusExist.setVisible(false);
+    }//GEN-LAST:event_txtCusNameFocusGained
+
+    private void txtFrdNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtFrdNameFocusGained
+        // TODO add your handling code here:
+        lblFrdExist.setVisible(false);
+    }//GEN-LAST:event_txtFrdNameFocusGained
+
+    private void btnCusCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusCancelActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(false);
+
+        showCustomer(listCustomer.getSelectedValue());
+
+        txtCusName.setEnabled(false);
+        txtCusName.setBackground(new Color(240, 240, 240));
+        txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusPhone.setEnabled(false);
+        txtCusPhone.setBackground(new Color(240, 240, 240));
+        txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusNameBank.setEnabled(false);
+        txtCusNameBank.setBackground(new Color(240, 240, 240));
+        txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusBankID.setEnabled(false);
+        txtCusBankID.setBackground(new Color(240, 240, 240));
+        txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusBank.setEnabled(false);
+        txtCusBank.setBackground(new Color(240, 240, 240));
+        txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusAddr.setEnabled(false);
+        txtCusAddr.setBackground(new Color(240, 240, 240));
+        txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnCusCancelActionPerformed
+
+    private void btnFrdCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdCancelActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(false);
+
+        showFriend(listFriend.getSelectedValue());
+
+        txtFrdName.setEnabled(false);
+        txtFrdName.setBackground(new Color(240, 240, 240));
+        txtFrdName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdPhone.setEnabled(false);
+        txtFrdPhone.setBackground(new Color(240, 240, 240));
+        txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdNameBank.setEnabled(false);
+        txtFrdNameBank.setBackground(new Color(240, 240, 240));
+        txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdBankID.setEnabled(false);
+        txtFrdBankID.setBackground(new Color(240, 240, 240));
+        txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdBank.setEnabled(false);
+        txtFrdBank.setBackground(new Color(240, 240, 240));
+        txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdAddr.setEnabled(false);
+        txtFrdAddr.setBackground(new Color(240, 240, 240));
+        txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnFrdCancelActionPerformed
+
+    private void btnFrdSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdSaveActionPerformed
+        // TODO add your handling code here:
+        if (!isAdding) {
+            try {
+                EntityManager.friendAgencyDAO.updateFriend(friendId, txtFrdName.getText(), txtFrdPhone.getText(), txtFrdAddr.getText(), txtFrdNameBank.getText(), txtFrdBankID.getText(), txtFrdBank.getText());
+                txtFrdName.setEnabled(false);
+                txtFrdName.setBackground(new Color(240, 240, 240));
+                txtFrdName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdPhone.setEnabled(false);
+                txtFrdPhone.setBackground(new Color(240, 240, 240));
+                txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdNameBank.setEnabled(false);
+                txtFrdNameBank.setBackground(new Color(240, 240, 240));
+                txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdBankID.setEnabled(false);
+                txtFrdBankID.setBackground(new Color(240, 240, 240));
+                txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdBank.setEnabled(false);
+                txtFrdBank.setBackground(new Color(240, 240, 240));
+                txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdAddr.setEnabled(false);
+                txtFrdAddr.setBackground(new Color(240, 240, 240));
+                txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                friendsNameList = EntityManager.friendAgencyDAO.getFriendAgencysName();
+                friendsNameModel.removeAllElements();
+                friendsNameModel.addAll(friendsNameList);
+                listFriend.setSelectedValue(txtFrdName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblFrdExist.setVisible(true);
+            }
+        } else {
+            try {
+                EntityManager.friendAgencyDAO.insertFriend(txtFrdName.getText(), txtFrdPhone.getText(), txtFrdAddr.getText(), txtFrdNameBank.getText(), txtFrdBankID.getText(), txtFrdBank.getText());
+                txtFrdName.setEnabled(false);
+                txtFrdName.setBackground(new Color(240, 240, 240));
+                txtFrdName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdPhone.setEnabled(false);
+                txtFrdPhone.setBackground(new Color(240, 240, 240));
+                txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdNameBank.setEnabled(false);
+                txtFrdNameBank.setBackground(new Color(240, 240, 240));
+                txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdBankID.setEnabled(false);
+                txtFrdBankID.setBackground(new Color(240, 240, 240));
+                txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdBank.setEnabled(false);
+                txtFrdBank.setBackground(new Color(240, 240, 240));
+                txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtFrdAddr.setEnabled(false);
+                txtFrdAddr.setBackground(new Color(240, 240, 240));
+                txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                friendsNameList = EntityManager.friendAgencyDAO.getFriendAgencysName();
+                friendsNameModel.removeAllElements();
+                friendsNameModel.addAll(friendsNameList);
+                listFriend.setSelectedValue(txtFrdName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblFrdExist.setVisible(true);
+            }
+        }
+    }//GEN-LAST:event_btnFrdSaveActionPerformed
+
+    private void listCustomerValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listCustomerValueChanged
+        // TODO add your handling code here:
+        String custumerName = listCustomer.getSelectedValue();
+        showCustomer(custumerName);
+        showSalesInvoiceTree(EntityManager.customerDAO.getCustomerIdbyName(custumerName));
+    }//GEN-LAST:event_listCustomerValueChanged
+
+    private void listSupplierValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listSupplierValueChanged
+        // TODO add your handling code here:
+        String supplierName = listSupplier.getSelectedValue();
+        showSupplier(supplierName);
+        showImportInvoiceTree(EntityManager.supplierDAO.getSupplierIdbyName(supplierName));
+    }//GEN-LAST:event_listSupplierValueChanged
+
+    private void listFriendValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listFriendValueChanged
+        // TODO add your handling code here:
+        String friendName = listFriend.getSelectedValue();
+        showFriend(friendName);
+        showLoanInvoiceTree(EntityManager.friendAgencyDAO.getFriendIdbyName(friendName));
+    }//GEN-LAST:event_listFriendValueChanged
     public void showProductTable() {
         productsList = EntityManager.productDAO.getAllProducts();
         showProductTable(productsList);
@@ -1471,7 +2748,12 @@ public class MainUI extends javax.swing.JFrame {
                 vctProductsData.add(vctRow);
             }
         }
-        productsModel = new ProductTableModel(vctProductsData, vctProductsHeader);
+        productsModel = new ProductTableModel(vctProductsData, vctProductsHeader) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // or a condition at your choice with row and column
+            }
+        };
         tableProduct.setModel(productsModel);
         TableColumnModel columnModel = tableProduct.getColumnModel();
         columnModel.getColumn(0).setMaxWidth(50);
@@ -1486,83 +2768,101 @@ public class MainUI extends javax.swing.JFrame {
         productsModel.fireTableDataChanged();
     }
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(MainUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(MainUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(MainUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(MainUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-        //</editor-fold>
+    public void showImportInvoiceTree(int supplierid) {
+        importInvoicesList = EntityManager.invoiceDAO.getImportInvoices(supplierid);
+        showImportInvoiceTree(importInvoicesList);
+    }
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new MainUI().setVisible(true);
+    public void showSalesInvoiceTree(int customerid) {
+        salesInvoicesList = EntityManager.invoiceDAO.getSalesInvoices(customerid);
+        showSalesInvoiceTree(salesInvoicesList);
+    }
+
+    public void showLoanInvoiceTree(int friend_agencyid) {
+        loanInvoicesList = EntityManager.invoiceDAO.getLoanInvoices(friend_agencyid);
+        showLoanInvoiceTree(loanInvoicesList);
+    }
+
+    public void showImportInvoiceTree(List<ImportInvoice> invoiceList) {
+        clearTree(importRoot);
+        ImportInvoice detail;
+        DefaultMutableTreeNode invoiceNode;
+        DefaultMutableTreeNode productNode;
+        for (int i = 0; i < invoiceList.size(); i++) {
+            detail = EntityManager.invoiceDAO.getImportInvoiceDetail(invoiceList.get(i).getId());
+            invoiceNode = new DefaultMutableTreeNode(detail);
+            for (Product p : detail.getSoldProducts()) {
+                ShowProductModel show = new ShowProductModel(p.getId(), p.getName(), p.getQuantity(), p.getQuantity() * p.getRetailPrice());
+                productNode = new DefaultMutableTreeNode(show);
+                invoiceNode.add(productNode);
             }
-        });
+            importRoot.add(invoiceNode);
+        }
+        treeImportModel.reload();
+    }
+
+    public void showLoanInvoiceTree(List<LoanInvoice> invoiceList) {
+        clearTree(loanRoot);
+        LoanInvoice detail;
+        DefaultMutableTreeNode invoiceNode;
+        DefaultMutableTreeNode productNode;
+        for (int i = 0; i < invoiceList.size(); i++) {
+            detail = EntityManager.invoiceDAO.getLoanInvoiceDetail(invoiceList.get(i).getId());
+            invoiceNode = new DefaultMutableTreeNode(detail);
+            for (Product p : detail.getSoldProducts()) {
+                ShowProductModel show = new ShowProductModel(p.getId(), p.getName(), p.getQuantity(), p.getQuantity() * p.getRetailPrice());
+                productNode = new DefaultMutableTreeNode(show);
+                invoiceNode.add(productNode);
+            }
+            loanRoot.add(invoiceNode);
+        }
+        treeLoanModel.reload();
+    }
+
+    public void showSalesInvoiceTree(List<SalesInvoice> invoiceList) {
+        clearTree(saleRoot);
+        SalesInvoice detail;
+        DefaultMutableTreeNode invoiceNode;
+        DefaultMutableTreeNode productNode;
+        for (int i = 0; i < invoiceList.size(); i++) {
+            detail = EntityManager.invoiceDAO.getSalesInvoiceDetail(invoiceList.get(i).getId());
+            invoiceNode = new DefaultMutableTreeNode(detail);
+            for (Product p : detail.getSoldProducts()) {
+                ShowProductModel show = new ShowProductModel(p.getId(), p.getName(), p.getQuantity(), p.getQuantity() * p.getRetailPrice());
+                productNode = new DefaultMutableTreeNode(show);
+                invoiceNode.add(productNode);
+            }
+            saleRoot.add(invoiceNode);
+        }
+        treeSaleModel.reload();
+    }
+
+    public void clearTable(DefaultTableModel table) {
+        table.getDataVector().removeAllElements();
+        table.fireTableDataChanged();
+    }
+
+    public void clearTree(DefaultMutableTreeNode root) {
+        root.removeAllChildren();
     }
 
     public void showResult() {
-//        for (int i = 0; i < list.size(); i++) {
-//            Vector vctRow = new Vector();
-//            Word w = list.get(i);
-//            vctRow.add(w.getWord());
-//            vctRow.add(w.getIpa());
-//            vctRow.add(w.getMean());
-//            vctRow.add(w.getType());
-//            vctRow.add(w.hashtagFancy());
-//            vctRow.add(w.getDateModified().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-//            vctData.add(vctRow);
-//
-////            System.out.println(w.toString());
-//        }
-
-        //Product Tab Init
-//        vctProductsHeader.add("ID");
-//        vctProductsHeader.add("Tên");
-//        vctProductsHeader.add("Loại");
-//        vctProductsHeader.add("Số lượng");
-//        vctProductsHeader.add("Kích cỡ");
-//        vctProductsHeader.add("Đơn vị");
-//        vctProductsHeader.add("Nguồn nhập");
-//        vctProductsHeader.add("Giá nhập");
-//        vctProductsHeader.add("Giá bán");
-//        vctProductsHeader.add("Ngày nhập");
         productsModel = new ProductTableModel(vctProductsData, vctProductsHeader);
         tableProduct.setModel(productsModel);
 
         showProductTable();
 
-        salesInvoicesModel = new DefaultTableModel(vctSalesInvoicesData, vctSalesInvoicesHeader);
+        salesInvoicesModel = new DefaultTableModel(null, vctSalesInvoicesHeader);
         tableSalesInvoice.setModel(salesInvoicesModel);
         TableColumnModel columnModelCus = tableSalesInvoice.getColumnModel();
         columnModelCus.getColumn(0).setMaxWidth(50);
 
-        importInvoicesModel = new DefaultTableModel(vctImportInvoicesData, vctImportInvoicesHeader);
+        importInvoicesModel = new DefaultTableModel(null, vctImportInvoicesHeader);
         tableImportInvoice.setModel(importInvoicesModel);
         TableColumnModel columnModelSup = tableImportInvoice.getColumnModel();
         columnModelSup.getColumn(0).setMaxWidth(50);
 
-        loanInvoicesModel = new DefaultTableModel(vctLoanInvoicesData, vctLoanInvoicesHeader);
+        loanInvoicesModel = new DefaultTableModel(null, vctLoanInvoicesHeader);
         tableLoanInvoice.setModel(loanInvoicesModel);
         TableColumnModel columnModelFrd = tableLoanInvoice.getColumnModel();
         columnModelFrd.getColumn(0).setMaxWidth(50);
@@ -1592,21 +2892,148 @@ public class MainUI extends javax.swing.JFrame {
         showProductTable(productsList);
     }
 
+    void setEditingMode(boolean isEditting) {
+        listCustomer.setEnabled(!isEditting);
+        listFriend.setEnabled(!isEditting);
+        listSupplier.setEnabled(!isEditting);
+        btnAddSupplier.setEnabled(!isEditting);
+        btnAddCustomer.setEnabled(!isEditting);
+        btnAddFriend.setEnabled(!isEditting);
+        editSearchSupplier.setEditable(!isEditting);
+        editSearchCustomer.setEditable(!isEditting);
+        editSearchFriend.setEditable(!isEditting);
+
+        btnSupSave.setVisible(isEditting);
+        btnSupCancel.setVisible(isEditting);
+        btnSupDel.setVisible(isEditting);
+        btnSupEdit.setVisible(!isEditting);
+
+        btnCusSave.setVisible(isEditting);
+        btnCusCancel.setVisible(isEditting);
+        btnCusDel.setVisible(isEditting);
+        btnCusEdit.setVisible(!isEditting);
+
+        btnFrdSave.setVisible(isEditting);
+        btnFrdCancel.setVisible(isEditting);
+        btnFrdDel.setVisible(isEditting);
+        btnFrdEdit.setVisible(!isEditting);
+
+    }
+
+    void showSupplier(int id) {
+        Supplier s = EntityManager.supplierDAO.getSupplier(id);
+        txtSupID.setText(Integer.toString(s.getId()));
+        txtSupName.setText(s.getName());
+        txtSupPhone.setText(s.getPhoneNumbers().get(0));
+        txtSupNameBank.setText(s.getPayments().get(0).getName());
+        txtSupBankID.setText(s.getPayments().get(0).getBankID());
+        txtSupBank.setText(s.getPayments().get(0).getBank());
+        txtSupAddr.setText(s.getAddresses().get(0).toString());
+    }
+
+    void showSupplier(String supplierName) {
+        if (supplierName == null) {
+            txtSupID.setText("");
+            txtSupName.setText("");
+            txtSupPhone.setText("");
+            txtSupNameBank.setText("");
+            txtSupBankID.setText("");
+            txtSupBank.setText("");
+            txtSupAddr.setText("");
+            return;
+        }
+        Supplier s = EntityManager.supplierDAO.getSupplier(supplierName);
+        txtSupID.setText(Integer.toString(s.getId()));
+        txtSupName.setText(s.getName());
+        txtSupPhone.setText(s.getPhoneNumbers().get(0));
+        txtSupNameBank.setText(s.getPayments().get(0).getName());
+        txtSupBankID.setText(s.getPayments().get(0).getBankID());
+        txtSupBank.setText(s.getPayments().get(0).getBank());
+        txtSupAddr.setText(s.getAddresses().get(0).toString());
+    }
+
+    void showCustomer(int id) {
+        Customer s = EntityManager.customerDAO.getCustomer(id);
+        txtCusID.setText(Integer.toString(s.getId()));
+        txtCusName.setText(s.getName());
+        txtCusPhone.setText(s.getPhoneNumbers().get(0));
+        txtCusNameBank.setText(s.getPayments().get(0).getName());
+        txtCusBankID.setText(s.getPayments().get(0).getBankID());
+        txtCusBank.setText(s.getPayments().get(0).getBank());
+        txtCusAddr.setText(s.getAddresses().get(0).toString());
+    }
+
+    void showCustomer(String customerName) {
+        if (customerName == null) {
+            txtCusID.setText("");
+            txtCusName.setText("");
+            txtCusPhone.setText("");
+            txtCusNameBank.setText("");
+            txtCusBankID.setText("");
+            txtCusBank.setText("");
+            txtCusAddr.setText("");
+            return;
+        }
+        Customer s = EntityManager.customerDAO.getCustomer(customerName);
+        txtCusID.setText(Integer.toString(s.getId()));
+        txtCusName.setText(s.getName());
+        txtCusPhone.setText(s.getPhoneNumbers().get(0));
+        txtCusNameBank.setText(s.getPayments().get(0).getName());
+        txtCusBankID.setText(s.getPayments().get(0).getBankID());
+        txtCusBank.setText(s.getPayments().get(0).getBank());
+        txtCusAddr.setText(s.getAddresses().get(0).toString());
+    }
+
+    void showFriend(int id) {
+        FriendAgency s = EntityManager.friendAgencyDAO.getFriendAgency(id);
+        txtFrdID.setText(Integer.toString(s.getId()));
+        txtFrdName.setText(s.getName());
+        txtFrdPhone.setText(s.getPhoneNumbers().get(0));
+        txtFrdNameBank.setText(s.getPayments().get(0).getName());
+        txtFrdBankID.setText(s.getPayments().get(0).getBankID());
+        txtFrdBank.setText(s.getPayments().get(0).getBank());
+        txtFrdAddr.setText(s.getAddresses().get(0).toString());
+    }
+
+    void showFriend(String friendName) {
+        if (friendName == null) {
+            txtFrdID.setText("");
+            txtFrdName.setText("");
+            txtFrdPhone.setText("");
+            txtFrdNameBank.setText("");
+            txtFrdBankID.setText("");
+            txtFrdBank.setText("");
+            txtFrdAddr.setText("");
+            return;
+        }
+        FriendAgency s = EntityManager.friendAgencyDAO.getFriendAgency(friendName);
+        txtFrdID.setText(Integer.toString(s.getId()));
+        txtFrdName.setText(s.getName());
+        txtFrdPhone.setText(s.getPhoneNumbers().get(0));
+        txtFrdNameBank.setText(s.getPayments().get(0).getName());
+        txtFrdBankID.setText(s.getPayments().get(0).getBankID());
+        txtFrdBank.setText(s.getPayments().get(0).getBank());
+        txtFrdAddr.setText(s.getAddresses().get(0).toString());
+    }
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnAddCustomer;
+    private javax.swing.JButton btnAddFriend;
     private javax.swing.JButton btnAddProduct;
-    private javax.swing.JButton btnAllCustomer;
-    private javax.swing.JButton btnAllFriend;
-    private javax.swing.JButton btnAllSupplier;
+    private javax.swing.JButton btnAddSupplier;
     private javax.swing.JButton btnCusCancel;
+    private javax.swing.JButton btnCusDel;
     private javax.swing.JButton btnCusEdit;
     private javax.swing.JButton btnCusSave;
     private javax.swing.JButton btnDelProduct;
     private javax.swing.JButton btnEditProduct;
     private javax.swing.JButton btnFrdCancel;
+    private javax.swing.JButton btnFrdDel;
     private javax.swing.JButton btnFrdEdit;
     private javax.swing.JButton btnFrdSave;
     private javax.swing.JButton btnSearchProduct;
     private javax.swing.JButton btnSupCancel;
+    private javax.swing.JButton btnSupDel;
     private javax.swing.JButton btnSupEdit;
     private javax.swing.JButton btnSupSave;
     private javax.swing.ButtonGroup buttonGroup1;
@@ -1620,17 +3047,11 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
-    private javax.swing.JLabel jLabel12;
-    private javax.swing.JLabel jLabel13;
-    private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
-    private javax.swing.JLabel jLabel19;
     private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel20;
-    private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel23;
     private javax.swing.JLabel jLabel24;
@@ -1642,9 +3063,17 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel30;
     private javax.swing.JLabel jLabel31;
+    private javax.swing.JLabel jLabel32;
+    private javax.swing.JLabel jLabel33;
     private javax.swing.JLabel jLabel34;
+    private javax.swing.JLabel jLabel35;
     private javax.swing.JLabel jLabel36;
+    private javax.swing.JLabel jLabel37;
+    private javax.swing.JLabel jLabel38;
+    private javax.swing.JLabel jLabel39;
     private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel40;
+    private javax.swing.JLabel jLabel41;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
@@ -1659,17 +3088,22 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel8;
     private javax.swing.JPanel jPanel9;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane10;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JScrollPane jScrollPane6;
     private javax.swing.JScrollPane jScrollPane7;
+    private javax.swing.JScrollPane jScrollPane8;
+    private javax.swing.JScrollPane jScrollPane9;
     private javax.swing.JTabbedPane jTabbedPane1;
-    private javax.swing.JTextField jTextField1;
-    private javax.swing.JTextField jTextField3;
+    private javax.swing.JTabbedPane jTabbedPane2;
+    private javax.swing.JLabel lblCusExist;
+    private javax.swing.JLabel lblFrdExist;
     private javax.swing.JLabel lblMaxPrice;
     private javax.swing.JLabel lblMinPrice;
+    private javax.swing.JLabel lblSupExist;
     private javax.swing.JLabel lblTimeInProduct;
     private javax.swing.JList<String> listCustomer;
     private javax.swing.JList<String> listFriend;
@@ -1682,22 +3116,29 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JTable tableLoanInvoice;
     private javax.swing.JTable tableProduct;
     private javax.swing.JTable tableSalesInvoice;
+    private javax.swing.JTree treeImport;
+    private javax.swing.JTree treeLoan;
+    private javax.swing.JTree treeSale;
+    private javax.swing.JTextField txtCusAddr;
     private javax.swing.JTextField txtCusBank;
     private javax.swing.JTextField txtCusBankID;
     private javax.swing.JTextField txtCusID;
     private javax.swing.JTextField txtCusName;
+    private javax.swing.JTextField txtCusNameBank;
     private javax.swing.JTextField txtCusPhone;
+    private javax.swing.JTextField txtFrdAddr;
     private javax.swing.JTextField txtFrdBank;
     private javax.swing.JTextField txtFrdBankID;
     private javax.swing.JTextField txtFrdID;
     private javax.swing.JTextField txtFrdName;
+    private javax.swing.JTextField txtFrdNameBank;
     private javax.swing.JTextField txtFrdPhone;
-    private javax.swing.JTextField txtNameBank;
     private javax.swing.JTextField txtSupAddr;
     private javax.swing.JTextField txtSupBank;
     private javax.swing.JTextField txtSupBankID;
     private javax.swing.JTextField txtSupID;
     private javax.swing.JTextField txtSupName;
+    private javax.swing.JTextField txtSupNameBank;
     private javax.swing.JTextField txtSupPhone;
     private javax.swing.JTextField txtTimeInProduct;
     // End of variables declaration//GEN-END:variables

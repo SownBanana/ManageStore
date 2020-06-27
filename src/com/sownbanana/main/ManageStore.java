@@ -51,15 +51,6 @@ public class ManageStore {
         EntityManager.mainUI.show();
         EntityManager.mainUI.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         EntityManager.mainUI.setLocationRelativeTo(null);
-        
-        ProductDAO pdao = new ProductDAO();
-        SupplierDAO sdao = new SupplierDAO();
-        List<Product> plList = pdao.getAllProductsByCategoryAndType(1,"Xô");
-        System.out.println(plList.toString());
-        Product product = pdao.getProduct(1);
-        System.out.println(product.toString());
-        Supplier supplier = sdao.getSupplier("Kiên");
-        System.out.println(supplier.toString());
     }
     
 }
