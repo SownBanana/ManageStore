@@ -38,6 +38,9 @@ public class ProductViewUI extends javax.swing.JDialog {
     public ProductViewUI(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
+        txtQuantity.setText("0");
+        txtQuantity.setEditable(false);
+        
         this.setLocationRelativeTo(null);
 
         //Combo box supplier
@@ -81,6 +84,7 @@ public class ProductViewUI extends javax.swing.JDialog {
     public ProductViewUI(java.awt.Frame parent, boolean modal, Product product) {
         super(parent, modal);
         initComponents();
+        txtQuantity.setEditable(false);
         this.setLocationRelativeTo(null);
         isEdit = true;
         this.product = product;

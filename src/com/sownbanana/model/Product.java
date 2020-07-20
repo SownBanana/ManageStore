@@ -6,7 +6,7 @@
 package com.sownbanana.model;
 
 import com.sownbanana.connection.EntityManager;
-import java.util.Date;
+import java.sql.Date;
 
 /**
  *
@@ -55,6 +55,9 @@ public class Product {
 
     public String getName() {
         return name;
+    }
+    public String getIdName() {
+        return id + ". " + name;
     }
 
     public void setName(String name) {

@@ -11,6 +11,7 @@ import java.util.List;
 import java.sql.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.util.Pair;
 
 /**
  *
@@ -82,6 +83,24 @@ public class ProductDAO {
         return list;
     }
 
+    public List<String> getAllProductIdNames() {
+        String query = "SELECT productid, name FROM store_manager.product";
+        List<String> list = new ArrayList<String>();
+        String name = null;
+
+        try {
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(query);
+            while (rs.next()) {
+                list.add(rs.getString("productid") + ". " + rs.getString("name"));
+            }
+            rs.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     public List<Product> getAllProductsByKey(String key, String supplier, String category, Date date, boolean isAvailable) {
         String query = "SELECT * FROM store_manager.product as p WHERE (p.name LIKE '%";
         String query2 = query + key + "%' " + "OR p.type LIKE '%" + key + "%')";
@@ -98,7 +117,7 @@ public class ProductDAO {
             query += " AND p.categoryid = " + categoryid;
             query2 += " AND p.categoryid = " + categoryid;
         }
-        if(isAvailable){
+        if (isAvailable) {
             query += " AND p.quantity > 0";
             query2 += " AND p.quantity > 0";
         }
@@ -429,6 +448,26 @@ public class ProductDAO {
             e.printStackTrace();
         }
         return product;
+    }
+
+    public List<Pair<String, Double>> getQuantityByCategoty() {
+        List<Pair<String, Double>> list = new ArrayList<>();
+
+        String query = "SELECT c.name, sum(p.quantity) FROM product as p\n"
+                + "LEFT JOIN category as c ON c.categoryid = p.categoryid\n"
+                + "GROUP BY c.name";
+
+        Statement statement;
+        try {
+            statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(query);
+            while (rs.next()) {
+                list.add(new Pair<String, Double>(rs.getString(1), rs.getDouble(2)));
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ProductDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return list;
     }
 
     public boolean insertProduct(Product product) {

@@ -5,6 +5,7 @@
  */
 package com.sownbanana.controller;
 
+import com.sownbanana.model.NumberToMoney;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -47,7 +48,7 @@ public class UIController {
     }
     
     public static String center(Double text, int len) {
-        String out = String.format("%" + len + "s%s%" + len + "s", "", doubleFormatter.format(text), "");
+        String out = String.format("%" + len + "s%s%" + len + "s", "", NumberToMoney.currencyFormat(text), "");
         float mid = (out.length() / 2);
         float start = mid - (len / 2);
         float end = start + len;

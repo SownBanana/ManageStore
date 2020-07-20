@@ -10,7 +10,9 @@ import com.sownbanana.controller.ProductController;
 import com.sownbanana.model.Customer;
 import com.sownbanana.model.FriendAgency;
 import com.sownbanana.model.ImportInvoice;
+import com.sownbanana.model.Invoice;
 import com.sownbanana.model.LoanInvoice;
+import com.sownbanana.model.NumberToMoney;
 import com.sownbanana.model.Product;
 import com.sownbanana.model.ProductTableModel;
 import com.sownbanana.model.SalesInvoice;
@@ -45,6 +47,9 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.JTree;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
@@ -77,13 +82,13 @@ public class MainUI extends javax.swing.JFrame {
     List<Customer> customersList;
     DefaultListModel<String> customerNameModel;
     List<String> customersNameList;
-    
+
     List<SalesInvoice> salesInvoicesList;
-    
+
     DefaultTableModel salesInvoicesModel;
     Vector vctSalesInvoicesHeader = new Vector();
 //    Vector vctSalesInvoicesData = new Vector();
-    
+
     DefaultTreeModel treeImportModel;
     DefaultMutableTreeNode importRoot;
 
@@ -94,11 +99,11 @@ public class MainUI extends javax.swing.JFrame {
     List<Supplier> suppliersList;
     List<String> supplierNameList;
     List<ImportInvoice> importInvoicesList;
-    
+
     DefaultTableModel importInvoicesModel;
     Vector vctImportInvoicesHeader = new Vector();
 //    Vector vctImportInvoicesData = new Vector();
-    
+
     DefaultTreeModel treeSaleModel;
     DefaultMutableTreeNode saleRoot;
 
@@ -108,9 +113,9 @@ public class MainUI extends javax.swing.JFrame {
     List<Product> friendsList;
     DefaultListModel<String> friendsNameModel;
     List<String> friendsNameList;
-    
+
     List<LoanInvoice> loanInvoicesList;
-    
+
     DefaultTableModel loanInvoicesModel;
     Vector vctLoanInvoicesHeader = new Vector();
 //    Vector vctLoanInvoicesData = new Vector();
@@ -122,17 +127,25 @@ public class MainUI extends javax.swing.JFrame {
 
     boolean isAdding = false;
 
+    JPopupMenu invoiceSupPopupMenu;
+    JPopupMenu invoiceCusPopupMenu;
+    JPopupMenu invoiceFrdPopupMenu;
+
     /**
      * Creates new form MainUI
      */
     public MainUI() {
         initComponents();
-
+        try{
+        showIncomeHome();}catch(Exception e){
+            e.printStackTrace();
+        }
+        
         DefaultTreeCellRenderer render = new DefaultTreeCellRenderer();
 //        render.setLeafIcon(null);
         render.setOpenIcon(null);
         render.setClosedIcon(null);
-        
+
         //Product Tab Init
         vctProductsHeader.add("ID");
         vctProductsHeader.add("Tên");
@@ -185,7 +198,7 @@ public class MainUI extends javax.swing.JFrame {
         vctSalesInvoicesHeader.add("Tổng thu");
         vctSalesInvoicesHeader.add("Đã thu");
         vctSalesInvoicesHeader.add("Ghi chú");
-        
+
         //Tree
         saleRoot = new DefaultMutableTreeNode("Root");
         treeSaleModel = new DefaultTreeModel(saleRoot);
@@ -199,7 +212,7 @@ public class MainUI extends javax.swing.JFrame {
                     DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeSale.getLastSelectedPathComponent();
                     if (selectedNode != null) {
                         if (selectedNode.isLeaf()) {
-                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ShowProductModel pm = (ShowProductModel) selectedNode.getUserObject();
                             ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
                             if (editproduct.isDataChange) {
                                 showProductTable();
@@ -218,7 +231,7 @@ public class MainUI extends javax.swing.JFrame {
         vctImportInvoicesHeader.add("Tổng chi");
         vctImportInvoicesHeader.add("Đã chi");
         vctImportInvoicesHeader.add("Ghi chú");
-        
+
         //Tree supplier
         importRoot = new DefaultMutableTreeNode("Root");
         treeImportModel = new DefaultTreeModel(importRoot);
@@ -232,7 +245,7 @@ public class MainUI extends javax.swing.JFrame {
                     DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeImport.getLastSelectedPathComponent();
                     if (selectedNode != null) {
                         if (selectedNode.isLeaf()) {
-                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ShowProductModel pm = (ShowProductModel) selectedNode.getUserObject();
                             ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
                             if (editproduct.isDataChange) {
                                 showProductTable();
@@ -274,7 +287,7 @@ public class MainUI extends javax.swing.JFrame {
                     DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeLoan.getLastSelectedPathComponent();
                     if (selectedNode != null) {
                         if (selectedNode.isLeaf()) {
-                            ShowProductModel pm = (ShowProductModel)selectedNode.getUserObject();
+                            ShowProductModel pm = (ShowProductModel) selectedNode.getUserObject();
                             ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, EntityManager.productDAO.getProduct(pm.id));
                             if (editproduct.isDataChange) {
                                 showProductTable();
@@ -286,7 +299,6 @@ public class MainUI extends javax.swing.JFrame {
 
         });
 
-        
         centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         rightRenderer = new DefaultTableCellRenderer();
@@ -365,6 +377,107 @@ public class MainUI extends javax.swing.JFrame {
         btnFrdCancel.setVisible(false);
         btnFrdDel.setVisible(false);
 
+        invoiceSupPopupMenu = new JPopupMenu();
+        JMenuItem editSupItem = new JMenuItem("Sửa hoá đơn");
+        editSupItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeImport.getLastSelectedPathComponent();
+                if (selectedNode != null) {
+                    AddInvoiceUI editInvoice = new AddInvoiceUI(EntityManager.mainUI, true, EntityManager.supplierDAO.getSupplier(supId), 1, (Invoice) selectedNode.getUserObject());
+                    editInvoice.setLocationRelativeTo(null);
+                    editInvoice.setVisible(true);
+                }
+            }
+
+        });
+        invoiceSupPopupMenu.add(editSupItem);
+        treeImport.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    TreePath path = treeImport.getPathForLocation(e.getX(), e.getY());
+                    if (path == null) {
+                    } else {
+                        treeImport.getSelectionModel().setSelectionPath(path);
+                        invoiceSupPopupMenu.show(e.getComponent(), e.getX(), e.getY());
+                    }
+                }
+            }
+
+        });
+
+        invoiceCusPopupMenu = new JPopupMenu();
+        JMenuItem editCusItem = new JMenuItem("Sửa hoá đơn");
+        editCusItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeSale.getLastSelectedPathComponent();
+                if (selectedNode != null) {
+                    AddInvoiceUI editInvoice = new AddInvoiceUI(EntityManager.mainUI, true, EntityManager.customerDAO.getCustomer(cusId), 2, (Invoice) selectedNode.getUserObject());
+                    editInvoice.setLocationRelativeTo(null);
+                    editInvoice.setVisible(true);
+                }
+            }
+
+        });
+        invoiceCusPopupMenu.add(editCusItem);
+        treeSale.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    TreePath path = treeSale.getPathForLocation(e.getX(), e.getY());
+                    if (path == null) {
+                    } else {
+                        treeSale.getSelectionModel().setSelectionPath(path);
+                        invoiceCusPopupMenu.show(e.getComponent(), e.getX(), e.getY());
+                    }
+                }
+            }
+
+        });
+
+        invoiceFrdPopupMenu = new JPopupMenu();
+        JMenuItem editFrdItem = new JMenuItem("Sửa hoá đơn");
+        editFrdItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeLoan.getLastSelectedPathComponent();
+                if (selectedNode != null) {
+                    AddInvoiceUI editInvoice = new AddInvoiceUI(EntityManager.mainUI, true, EntityManager.friendAgencyDAO.getFriendAgency(friendId), 3, (Invoice) selectedNode.getUserObject());
+                    editInvoice.setLocationRelativeTo(null);
+                    editInvoice.setVisible(true);
+                }
+            }
+
+        });
+        invoiceFrdPopupMenu.add(editFrdItem);
+        treeLoan.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    TreePath path = treeLoan.getPathForLocation(e.getX(), e.getY());
+                    if (path == null) {
+                    } else {
+                        treeLoan.getSelectionModel().setSelectionPath(path);
+                        invoiceFrdPopupMenu.show(e.getComponent(), e.getX(), e.getY());
+                    }
+                }
+            }
+
+        });
+
+        for (String item : categoryComboitems) {
+            cboxCategoryChart.addItem(item);
+        }
+        List<String> years = EntityManager.invoiceDAO.getYears();
+        for (String item : years) {
+            cboxYear1.addItem(item);
+            cboxYear2.addItem(item);
+        }
+        cboxYear1.setSelectedIndex(years.size() - 2);
+        cboxYear2.setSelectedIndex(years.size() - 1);
+
     }
 
     /**
@@ -379,6 +492,19 @@ public class MainUI extends javax.swing.JFrame {
         buttonGroup1 = new javax.swing.ButtonGroup();
         jTabbedPane1 = new javax.swing.JTabbedPane();
         jPanel1 = new javax.swing.JPanel();
+        paneGrap2 = new javax.swing.JPanel();
+        paneGrap1 = new javax.swing.JPanel();
+        cboxCategoryChart = new javax.swing.JComboBox<>();
+        cboxYear1 = new javax.swing.JComboBox<>();
+        cboxYear2 = new javax.swing.JComboBox<>();
+        jLabel60 = new javax.swing.JLabel();
+        jLabel61 = new javax.swing.JLabel();
+        txtMonthIncome = new javax.swing.JLabel();
+        jLabel63 = new javax.swing.JLabel();
+        jLabel64 = new javax.swing.JLabel();
+        txtChi = new javax.swing.JLabel();
+        txtThu = new javax.swing.JLabel();
+        paneGrap3 = new javax.swing.JPanel();
         jPanel2 = new javax.swing.JPanel();
         editSearchProduct = new javax.swing.JTextField();
         btnSearchProduct = new javax.swing.JButton();
@@ -430,6 +556,7 @@ public class MainUI extends javax.swing.JFrame {
         lblCusExist = new javax.swing.JLabel();
         jScrollPane10 = new javax.swing.JScrollPane();
         treeSale = new javax.swing.JTree();
+        btnCusAddIv = new javax.swing.JButton();
         editSearchCustomer = new javax.swing.JTextField();
         btnAddCustomer = new javax.swing.JButton();
         jScrollPane6 = new javax.swing.JScrollPane();
@@ -464,6 +591,7 @@ public class MainUI extends javax.swing.JFrame {
         btnSupDel = new javax.swing.JButton();
         jScrollPane9 = new javax.swing.JScrollPane();
         treeImport = new javax.swing.JTree();
+        btnSupAddIv = new javax.swing.JButton();
         btnAddSupplier = new javax.swing.JButton();
         jPanel5 = new javax.swing.JPanel();
         jPanel9 = new javax.swing.JPanel();
@@ -496,25 +624,235 @@ public class MainUI extends javax.swing.JFrame {
         lblFrdExist = new javax.swing.JLabel();
         jScrollPane8 = new javax.swing.JScrollPane();
         treeLoan = new javax.swing.JTree();
+        btnFrdAddIv = new javax.swing.JButton();
         btnAddFriend = new javax.swing.JButton();
         jPanel8 = new javax.swing.JPanel();
         jTabbedPane2 = new javax.swing.JTabbedPane();
-        jPanel6 = new javax.swing.JPanel();
+        jPanel7 = new javax.swing.JPanel();
+        searchSaleIv = new javax.swing.JTextField();
+        btnAddSaleIv = new javax.swing.JButton();
+        jScrollPane11 = new javax.swing.JScrollPane();
+        listSaleIv = new javax.swing.JList<>();
+        jLabel12 = new javax.swing.JLabel();
+        jLabel13 = new javax.swing.JLabel();
+        jLabel14 = new javax.swing.JLabel();
+        txtSaleInvID = new javax.swing.JTextField();
+        txtCusIvName = new javax.swing.JTextField();
+        jLabel19 = new javax.swing.JLabel();
+        txtCusIvPhone = new javax.swing.JTextField();
+        jLabel45 = new javax.swing.JLabel();
+        txtCusIvAddr = new javax.swing.JTextField();
+        jLabel46 = new javax.swing.JLabel();
+        txtCusIvTotal = new javax.swing.JTextField();
+        jScrollPane12 = new javax.swing.JScrollPane();
+        tblSaleIv = new javax.swing.JTable();
+        jLabel47 = new javax.swing.JLabel();
+        btnPrintSaleIv = new javax.swing.JButton();
+        btnPrintSaleQuote = new javax.swing.JButton();
+        jLabel48 = new javax.swing.JLabel();
+        txtCusIvPaid = new javax.swing.JTextField();
+        btnEditSaleIv = new javax.swing.JButton();
+        jPanel10 = new javax.swing.JPanel();
+        jLabel20 = new javax.swing.JLabel();
+        jLabel21 = new javax.swing.JLabel();
+        txtSaleInvID1 = new javax.swing.JTextField();
+        jLabel42 = new javax.swing.JLabel();
+        txtCusIvName1 = new javax.swing.JTextField();
+        jLabel43 = new javax.swing.JLabel();
+        txtCusIvPhone1 = new javax.swing.JTextField();
+        jLabel49 = new javax.swing.JLabel();
+        txtCusIvAddr1 = new javax.swing.JTextField();
+        jLabel50 = new javax.swing.JLabel();
+        txtCusIvTotal1 = new javax.swing.JTextField();
+        jLabel51 = new javax.swing.JLabel();
+        jLabel52 = new javax.swing.JLabel();
+        txtCusIvPaid1 = new javax.swing.JTextField();
+        jScrollPane13 = new javax.swing.JScrollPane();
+        tblSaleIv1 = new javax.swing.JTable();
+        btnPrintSaleIv1 = new javax.swing.JButton();
+        btnPrintSaleQuote1 = new javax.swing.JButton();
+        btnEditSaleIv1 = new javax.swing.JButton();
+        jScrollPane14 = new javax.swing.JScrollPane();
+        listSaleIv1 = new javax.swing.JList<>();
+        btnAddSaleIv1 = new javax.swing.JButton();
+        searchSaleIv1 = new javax.swing.JTextField();
+        jPanel11 = new javax.swing.JPanel();
+        jLabel44 = new javax.swing.JLabel();
+        jLabel53 = new javax.swing.JLabel();
+        txtSaleInvID2 = new javax.swing.JTextField();
+        jLabel54 = new javax.swing.JLabel();
+        txtCusIvName2 = new javax.swing.JTextField();
+        jLabel55 = new javax.swing.JLabel();
+        txtCusIvPhone2 = new javax.swing.JTextField();
+        jLabel56 = new javax.swing.JLabel();
+        txtCusIvAddr2 = new javax.swing.JTextField();
+        jLabel57 = new javax.swing.JLabel();
+        txtCusIvTotal2 = new javax.swing.JTextField();
+        jLabel58 = new javax.swing.JLabel();
+        txtCusIvPaid2 = new javax.swing.JTextField();
+        jLabel59 = new javax.swing.JLabel();
+        jScrollPane15 = new javax.swing.JScrollPane();
+        tblSaleIv2 = new javax.swing.JTable();
+        btnPrintSaleIv2 = new javax.swing.JButton();
+        btnPrintSaleQuote2 = new javax.swing.JButton();
+        btnEditSaleIv2 = new javax.swing.JButton();
+        jScrollPane16 = new javax.swing.JScrollPane();
+        listSaleIv2 = new javax.swing.JList<>();
+        btnAddSaleIv2 = new javax.swing.JButton();
+        searchSaleIv2 = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
         jTabbedPane1.setToolTipText("");
         jTabbedPane1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
 
+        javax.swing.GroupLayout paneGrap2Layout = new javax.swing.GroupLayout(paneGrap2);
+        paneGrap2.setLayout(paneGrap2Layout);
+        paneGrap2Layout.setHorizontalGroup(
+            paneGrap2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 417, Short.MAX_VALUE)
+        );
+        paneGrap2Layout.setVerticalGroup(
+            paneGrap2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 300, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout paneGrap1Layout = new javax.swing.GroupLayout(paneGrap1);
+        paneGrap1.setLayout(paneGrap1Layout);
+        paneGrap1Layout.setHorizontalGroup(
+            paneGrap1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        paneGrap1Layout.setVerticalGroup(
+            paneGrap1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 222, Short.MAX_VALUE)
+        );
+
+        cboxCategoryChart.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cboxCategoryChartActionPerformed(evt);
+            }
+        });
+
+        cboxYear1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cboxYear1ActionPerformed(evt);
+            }
+        });
+
+        cboxYear2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cboxYear2ActionPerformed(evt);
+            }
+        });
+
+        jLabel60.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
+        jLabel60.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel60.setText("Thu nhập tháng này:");
+
+        jLabel61.setFont(new java.awt.Font("Segoe UI Semibold", 0, 24)); // NOI18N
+        jLabel61.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel61.setText("Cửa hàng vật liệu XYZ");
+
+        txtMonthIncome.setFont(new java.awt.Font("Segoe UI Semibold", 0, 36)); // NOI18N
+        txtMonthIncome.setForeground(new java.awt.Color(0, 153, 51));
+        txtMonthIncome.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        txtMonthIncome.setText("20,000,000");
+
+        jLabel63.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
+        jLabel63.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel63.setText("Tổng chi năm");
+
+        jLabel64.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
+        jLabel64.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel64.setText("Tổng thu năm");
+
+        txtChi.setFont(new java.awt.Font("Segoe UI Semibold", 0, 24)); // NOI18N
+        txtChi.setForeground(new java.awt.Color(210, 31, 31));
+        txtChi.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        txtChi.setText("20,000,000");
+
+        txtThu.setFont(new java.awt.Font("Segoe UI Semibold", 0, 24)); // NOI18N
+        txtThu.setForeground(new java.awt.Color(0, 153, 51));
+        txtThu.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        txtThu.setText("20,000,000");
+
+        javax.swing.GroupLayout paneGrap3Layout = new javax.swing.GroupLayout(paneGrap3);
+        paneGrap3.setLayout(paneGrap3Layout);
+        paneGrap3Layout.setHorizontalGroup(
+            paneGrap3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        paneGrap3Layout.setVerticalGroup(
+            paneGrap3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 214, Short.MAX_VALUE)
+        );
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 865, Short.MAX_VALUE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(cboxCategoryChart, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(cboxYear1, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(cboxYear2, javax.swing.GroupLayout.PREFERRED_SIZE, 78, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(paneGrap2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(paneGrap1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 28, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(paneGrap3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(txtMonthIncome, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE)
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addComponent(jLabel63)
+                                .addComponent(txtChi, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(txtThu, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 185, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(jLabel64, javax.swing.GroupLayout.Alignment.TRAILING))))
+                    .addComponent(jLabel60, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jLabel61, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 254, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 560, Short.MAX_VALUE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(paneGrap2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(cboxYear2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(cboxYear1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(cboxCategoryChart, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(4, 4, 4)
+                        .addComponent(jLabel61, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabel60)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(txtMonthIncome, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(49, 49, 49)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel64)
+                            .addComponent(jLabel63))
+                        .addGap(6, 6, 6)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(txtChi)
+                            .addComponent(txtThu))))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(paneGrap3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(paneGrap1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("Trang chủ", jPanel1);
@@ -913,6 +1251,13 @@ public class MainUI extends javax.swing.JFrame {
         treeSale.setRootVisible(false);
         jScrollPane10.setViewportView(treeSale);
 
+        btnCusAddIv.setText("Thêm hoá đơn");
+        btnCusAddIv.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCusAddIvActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout panelCusInforLayout = new javax.swing.GroupLayout(panelCusInfor);
         panelCusInfor.setLayout(panelCusInforLayout);
         panelCusInforLayout.setHorizontalGroup(
@@ -929,10 +1274,6 @@ public class MainUI extends javax.swing.JFrame {
                 .addComponent(btnCusSave, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(btnCusCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelCusInforLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel15)
-                .addGap(220, 220, 220))
             .addGroup(panelCusInforLayout.createSequentialGroup()
                 .addGap(31, 31, 31)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -962,10 +1303,14 @@ public class MainUI extends javax.swing.JFrame {
                                 .addComponent(jLabel35, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addComponent(txtCusBank, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(0, 0, Short.MAX_VALUE))
+                        .addGap(0, 26, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelCusInforLayout.createSequentialGroup()
-                        .addGap(380, 380, 380)
-                        .addComponent(btnCusEdit))))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel15)
+                        .addGap(93, 93, 93)
+                        .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(btnCusEdit, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(btnCusAddIv, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))))
             .addGroup(panelCusInforLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jScrollPane10))
@@ -973,8 +1318,12 @@ public class MainUI extends javax.swing.JFrame {
         panelCusInforLayout.setVerticalGroup(
             panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelCusInforLayout.createSequentialGroup()
-                .addComponent(jLabel15)
-                .addGap(18, 18, 18)
+                .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel15)
+                    .addGroup(panelCusInforLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(btnCusAddIv)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelCusInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jLabel16)
@@ -1063,14 +1412,14 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel4Layout.createSequentialGroup()
-                        .addComponent(panelCusInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 533, Short.MAX_VALUE)
+                        .addComponent(panelCusInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 535, Short.MAX_VALUE)
                         .addGap(16, 16, 16))
                     .addGroup(jPanel4Layout.createSequentialGroup()
                         .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(editSearchCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(btnAddCustomer))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, 509, Short.MAX_VALUE)
+                        .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, 511, Short.MAX_VALUE)
                         .addContainerGap())))
         );
 
@@ -1281,6 +1630,13 @@ public class MainUI extends javax.swing.JFrame {
         treeImport.setRootVisible(false);
         jScrollPane9.setViewportView(treeImport);
 
+        btnSupAddIv.setText("Thêm hoá đơn");
+        btnSupAddIv.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSupAddIvActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout panelSupInforLayout = new javax.swing.GroupLayout(panelSupInfor);
         panelSupInfor.setLayout(panelSupInforLayout);
         panelSupInforLayout.setHorizontalGroup(
@@ -1291,7 +1647,8 @@ public class MainUI extends javax.swing.JFrame {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelSupInforLayout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 285, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(164, 164, 164))
+                .addGap(18, 18, 18)
+                .addComponent(btnSupAddIv, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE))
             .addGroup(panelSupInforLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jLabel26)
@@ -1342,8 +1699,12 @@ public class MainUI extends javax.swing.JFrame {
         panelSupInforLayout.setVerticalGroup(
             panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelSupInforLayout.createSequentialGroup()
-                .addComponent(jLabel2)
-                .addGap(18, 18, 18)
+                .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel2)
+                    .addGroup(panelSupInforLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(btnSupAddIv)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelSupInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jLabel1)
@@ -1413,14 +1774,14 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(panelSupInfor, javax.swing.GroupLayout.DEFAULT_SIZE, 533, Short.MAX_VALUE)
+                        .addComponent(panelSupInfor, javax.swing.GroupLayout.PREFERRED_SIZE, 533, Short.MAX_VALUE)
                         .addGap(16, 16, 16))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(editSearchSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(btnAddSupplier))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 516, Short.MAX_VALUE)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 509, Short.MAX_VALUE)
                         .addContainerGap())))
         );
 
@@ -1627,6 +1988,13 @@ public class MainUI extends javax.swing.JFrame {
         treeLoan.setRootVisible(false);
         jScrollPane8.setViewportView(treeLoan);
 
+        btnFrdAddIv.setText("Thêm hoá đơn");
+        btnFrdAddIv.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFrdAddIvActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout panelFrdInforLayout = new javax.swing.GroupLayout(panelFrdInfor);
         panelFrdInfor.setLayout(panelFrdInforLayout);
         panelFrdInforLayout.setHorizontalGroup(
@@ -1635,10 +2003,6 @@ public class MainUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane4, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 209, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(205, 205, 205))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
                         .addComponent(jLabel27)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -1676,17 +2040,25 @@ public class MainUI extends javax.swing.JFrame {
                                         .addComponent(jLabel40, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                         .addComponent(txtFrdBank, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addGap(0, 0, Short.MAX_VALUE))
+                                .addGap(0, 26, Short.MAX_VALUE))
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createSequentialGroup()
-                                .addGap(380, 380, 380)
-                                .addComponent(btnFrdEdit))))
+                                .addGap(0, 0, Short.MAX_VALUE)
+                                .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 209, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(78, 78, 78)
+                                .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(btnFrdAddIv, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(btnFrdEdit, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))))
                     .addComponent(jScrollPane8)))
         );
         panelFrdInforLayout.setVerticalGroup(
             panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelFrdInforLayout.createSequentialGroup()
-                .addComponent(jLabel8)
-                .addGap(18, 18, 18)
+                .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel8)
+                    .addGroup(panelFrdInforLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(btnFrdAddIv)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelFrdInforLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jLabel9)
@@ -1721,10 +2093,10 @@ public class MainUI extends javax.swing.JFrame {
                     .addComponent(btnFrdCancel)
                     .addComponent(jLabel27)
                     .addComponent(btnFrdDel))
-                .addGap(13, 13, 13)
+                .addGap(11, 11, 11)
                 .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, 0)
-                .addComponent(jScrollPane8, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
+                .addComponent(jScrollPane8, javax.swing.GroupLayout.DEFAULT_SIZE, 258, Short.MAX_VALUE))
         );
 
         btnAddFriend.setText("Thêm");
@@ -1784,37 +2156,696 @@ public class MainUI extends javax.swing.JFrame {
 
         jTabbedPane1.addTab("Đối tác", jPanel5);
 
+        jTabbedPane2.setTabPlacement(javax.swing.JTabbedPane.LEFT);
+
+        btnAddSaleIv.setText("Thêm");
+
+        listSaleIv.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public String getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane11.setViewportView(listSaleIv);
+
+        jLabel12.setFont(new java.awt.Font("Segoe UI Semibold", 0, 14)); // NOI18N
+        jLabel12.setText("HOÁ ĐƠN BÁN HÀNG");
+
+        jLabel13.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel13.setText("Mã hoá đơn:");
+
+        jLabel14.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel14.setText("Tên khách hàng:");
+
+        txtSaleInvID.setBackground(new java.awt.Color(240, 240, 240));
+        txtSaleInvID.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtSaleInvID.setText("00001");
+        txtSaleInvID.setBorder(null);
+        txtSaleInvID.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSaleInvID.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtSaleInvIDActionPerformed(evt);
+            }
+        });
+
+        txtCusIvName.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvName.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvName.setText("Kiên");
+        txtCusIvName.setBorder(null);
+        txtCusIvName.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvName.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtCusIvNameFocusGained(evt);
+            }
+        });
+
+        jLabel19.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel19.setText("Số điện thoại:");
+
+        txtCusIvPhone.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPhone.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPhone.setText("0986414972");
+        txtCusIvPhone.setBorder(null);
+        txtCusIvPhone.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel45.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel45.setText("Địa chỉ:");
+
+        txtCusIvAddr.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvAddr.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvAddr.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
+        txtCusIvAddr.setBorder(null);
+        txtCusIvAddr.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvAddr.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvAddrActionPerformed(evt);
+            }
+        });
+
+        jLabel46.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel46.setText("Tổng tiền:");
+
+        txtCusIvTotal.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvTotal.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvTotal.setText("100000");
+        txtCusIvTotal.setBorder(null);
+        txtCusIvTotal.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvTotal.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvTotalActionPerformed(evt);
+            }
+        });
+
+        tblSaleIv.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane12.setViewportView(tblSaleIv);
+
+        jLabel47.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel47.setText("Danh sách mặt hàng:");
+
+        btnPrintSaleIv.setText("In hoá đơn");
+
+        btnPrintSaleQuote.setText("In báo giá");
+
+        jLabel48.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel48.setText("Đã thanh toán:");
+
+        txtCusIvPaid.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPaid.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPaid.setText("100000");
+        txtCusIvPaid.setBorder(null);
+        txtCusIvPaid.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvPaid.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvPaidActionPerformed(evt);
+            }
+        });
+
+        btnEditSaleIv.setText("Sửa");
+
+        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
+        jPanel7.setLayout(jPanel7Layout);
+        jPanel7Layout.setHorizontalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(jScrollPane11)
+                    .addGroup(jPanel7Layout.createSequentialGroup()
+                        .addComponent(searchSaleIv, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(btnAddSaleIv)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 44, Short.MAX_VALUE)
+                .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                            .addComponent(jLabel12, javax.swing.GroupLayout.PREFERRED_SIZE, 152, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGap(223, 223, 223))
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                            .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addComponent(jLabel19)
+                                .addComponent(jLabel14)
+                                .addComponent(jLabel13))
+                            .addGap(23, 23, 23)
+                            .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(txtSaleInvID, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(txtCusIvName, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(txtCusIvPhone, javax.swing.GroupLayout.PREFERRED_SIZE, 361, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGap(79, 79, 79))
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                            .addComponent(jLabel45)
+                            .addGap(23, 23, 23)
+                            .addComponent(txtCusIvAddr, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addContainerGap())
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                            .addComponent(jLabel46)
+                            .addGap(23, 23, 23)
+                            .addComponent(txtCusIvTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addContainerGap())
+                        .addGroup(jPanel7Layout.createSequentialGroup()
+                            .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel47)
+                                .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addGroup(jPanel7Layout.createSequentialGroup()
+                                        .addComponent(btnEditSaleIv)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(btnPrintSaleQuote)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(btnPrintSaleIv))
+                                    .addComponent(jScrollPane12, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 539, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addContainerGap()))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel7Layout.createSequentialGroup()
+                        .addComponent(jLabel48)
+                        .addGap(23, 23, 23)
+                        .addComponent(txtCusIvPaid, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap())))
+        );
+        jPanel7Layout.setVerticalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(searchSaleIv, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnAddSaleIv)
+                    .addComponent(jLabel12))
+                .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel7Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane11))
+                    .addGroup(jPanel7Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel13)
+                            .addComponent(txtSaleInvID, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(txtCusIvName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel14))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel19)
+                            .addComponent(txtCusIvPhone, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel45)
+                            .addComponent(txtCusIvAddr, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel46)
+                            .addComponent(txtCusIvTotal, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel48)
+                            .addComponent(txtCusIvPaid, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel47)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jScrollPane12, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnPrintSaleIv)
+                            .addComponent(btnPrintSaleQuote)
+                            .addComponent(btnEditSaleIv))
+                        .addGap(6, 6, 6)))
+                .addContainerGap())
+        );
+
+        jTabbedPane2.addTab("Bán hàng", jPanel7);
+
+        jLabel20.setFont(new java.awt.Font("Segoe UI Semibold", 0, 14)); // NOI18N
+        jLabel20.setText("PHIẾU NHẬP KHO");
+
+        jLabel21.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel21.setText("Mã phiếu:");
+
+        txtSaleInvID1.setBackground(new java.awt.Color(240, 240, 240));
+        txtSaleInvID1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtSaleInvID1.setText("00001");
+        txtSaleInvID1.setBorder(null);
+        txtSaleInvID1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSaleInvID1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtSaleInvID1ActionPerformed(evt);
+            }
+        });
+
+        jLabel42.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel42.setText("Tên nhà cung cấp:");
+
+        txtCusIvName1.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvName1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvName1.setText("Kiên");
+        txtCusIvName1.setBorder(null);
+        txtCusIvName1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvName1.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtCusIvName1FocusGained(evt);
+            }
+        });
+
+        jLabel43.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel43.setText("Số điện thoại:");
+
+        txtCusIvPhone1.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPhone1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPhone1.setText("0986414972");
+        txtCusIvPhone1.setBorder(null);
+        txtCusIvPhone1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel49.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel49.setText("Địa chỉ:");
+
+        txtCusIvAddr1.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvAddr1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvAddr1.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
+        txtCusIvAddr1.setBorder(null);
+        txtCusIvAddr1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvAddr1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvAddr1ActionPerformed(evt);
+            }
+        });
+
+        jLabel50.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel50.setText("Tổng tiền:");
+
+        txtCusIvTotal1.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvTotal1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvTotal1.setText("100000");
+        txtCusIvTotal1.setBorder(null);
+        txtCusIvTotal1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvTotal1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvTotal1ActionPerformed(evt);
+            }
+        });
+
+        jLabel51.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel51.setText("Đã thanh toán:");
+
+        jLabel52.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel52.setText("Danh sách mặt hàng:");
+
+        txtCusIvPaid1.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPaid1.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPaid1.setText("100000");
+        txtCusIvPaid1.setBorder(null);
+        txtCusIvPaid1.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvPaid1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvPaid1ActionPerformed(evt);
+            }
+        });
+
+        tblSaleIv1.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane13.setViewportView(tblSaleIv1);
+
+        btnPrintSaleIv1.setText("In hoá đơn");
+
+        btnPrintSaleQuote1.setText("In báo giá");
+
+        btnEditSaleIv1.setText("Sửa");
+
+        listSaleIv1.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public String getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane14.setViewportView(listSaleIv1);
+
+        btnAddSaleIv1.setText("Thêm");
+
+        javax.swing.GroupLayout jPanel10Layout = new javax.swing.GroupLayout(jPanel10);
+        jPanel10.setLayout(jPanel10Layout);
+        jPanel10Layout.setHorizontalGroup(
+            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel10Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(jScrollPane14)
+                    .addGroup(jPanel10Layout.createSequentialGroup()
+                        .addComponent(searchSaleIv1, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(btnAddSaleIv1)))
+                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                            .addGap(239, 239, 239)
+                            .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, 152, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGap(223, 223, 223))
+                        .addGroup(jPanel10Layout.createSequentialGroup()
+                            .addGap(44, 44, 44)
+                            .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel52)
+                                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                    .addGroup(jPanel10Layout.createSequentialGroup()
+                                        .addComponent(btnEditSaleIv1)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(btnPrintSaleQuote1)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(btnPrintSaleIv1))
+                                    .addComponent(jScrollPane13, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 539, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addContainerGap()))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                        .addGap(33, 33, 33)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jLabel43)
+                                    .addComponent(jLabel42)
+                                    .addComponent(jLabel21))
+                                .addGap(23, 23, 23)
+                                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(txtSaleInvID1, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusIvName1, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusIvPhone1, javax.swing.GroupLayout.PREFERRED_SIZE, 361, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(69, 69, 69))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                                .addComponent(jLabel49)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvAddr1, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                                .addComponent(jLabel50)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvTotal1, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel10Layout.createSequentialGroup()
+                                .addComponent(jLabel51)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvPaid1, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(22, 22, 22))))
+        );
+        jPanel10Layout.setVerticalGroup(
+            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel10Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(searchSaleIv1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnAddSaleIv1)
+                    .addComponent(jLabel20))
+                .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel10Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane14))
+                    .addGroup(jPanel10Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel21)
+                            .addComponent(txtSaleInvID1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(txtCusIvName1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel42))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel43)
+                            .addComponent(txtCusIvPhone1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel49)
+                            .addComponent(txtCusIvAddr1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel50)
+                            .addComponent(txtCusIvTotal1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel51)
+                            .addComponent(txtCusIvPaid1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel52)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jScrollPane13, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnPrintSaleIv1)
+                            .addComponent(btnPrintSaleQuote1)
+                            .addComponent(btnEditSaleIv1))
+                        .addGap(6, 6, 6)))
+                .addContainerGap())
+        );
+
+        jTabbedPane2.addTab("Nhập hàng", jPanel10);
+
+        jLabel44.setFont(new java.awt.Font("Segoe UI Semibold", 0, 14)); // NOI18N
+        jLabel44.setText("PHIẾU VAY MƯỢN");
+
+        jLabel53.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel53.setText("Mã phiếu:");
+
+        txtSaleInvID2.setBackground(new java.awt.Color(240, 240, 240));
+        txtSaleInvID2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtSaleInvID2.setText("00001");
+        txtSaleInvID2.setBorder(null);
+        txtSaleInvID2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtSaleInvID2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtSaleInvID2ActionPerformed(evt);
+            }
+        });
+
+        jLabel54.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel54.setText("Tên đối tác:");
+
+        txtCusIvName2.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvName2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvName2.setText("Kiên");
+        txtCusIvName2.setBorder(null);
+        txtCusIvName2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvName2.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                txtCusIvName2FocusGained(evt);
+            }
+        });
+
+        jLabel55.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel55.setText("Số điện thoại:");
+
+        txtCusIvPhone2.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPhone2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPhone2.setText("0986414972");
+        txtCusIvPhone2.setBorder(null);
+        txtCusIvPhone2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+
+        jLabel56.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel56.setText("Địa chỉ:");
+
+        txtCusIvAddr2.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvAddr2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvAddr2.setText("Thôn Gì Đó, xã Gì Đó, huyện Gì Đó, tỉnh Gì đó ");
+        txtCusIvAddr2.setBorder(null);
+        txtCusIvAddr2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvAddr2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvAddr2ActionPerformed(evt);
+            }
+        });
+
+        jLabel57.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel57.setText("Tổng tiền:");
+
+        txtCusIvTotal2.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvTotal2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvTotal2.setText("100000");
+        txtCusIvTotal2.setBorder(null);
+        txtCusIvTotal2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvTotal2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvTotal2ActionPerformed(evt);
+            }
+        });
+
+        jLabel58.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel58.setText("Đã thanh toán:");
+
+        txtCusIvPaid2.setBackground(new java.awt.Color(240, 240, 240));
+        txtCusIvPaid2.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        txtCusIvPaid2.setText("100000");
+        txtCusIvPaid2.setBorder(null);
+        txtCusIvPaid2.setDisabledTextColor(new java.awt.Color(0, 0, 0));
+        txtCusIvPaid2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtCusIvPaid2ActionPerformed(evt);
+            }
+        });
+
+        jLabel59.setFont(new java.awt.Font("Tahoma", 0, 13)); // NOI18N
+        jLabel59.setText("Danh sách mặt hàng:");
+
+        tblSaleIv2.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane15.setViewportView(tblSaleIv2);
+
+        btnPrintSaleIv2.setText("In hoá đơn");
+
+        btnPrintSaleQuote2.setText("In báo giá");
+
+        btnEditSaleIv2.setText("Sửa");
+
+        listSaleIv2.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public String getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane16.setViewportView(listSaleIv2);
+
+        btnAddSaleIv2.setText("Thêm");
+
+        javax.swing.GroupLayout jPanel11Layout = new javax.swing.GroupLayout(jPanel11);
+        jPanel11.setLayout(jPanel11Layout);
+        jPanel11Layout.setHorizontalGroup(
+            jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel11Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(jScrollPane16)
+                    .addGroup(jPanel11Layout.createSequentialGroup()
+                        .addComponent(searchSaleIv2, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(btnAddSaleIv2)))
+                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel11Layout.createSequentialGroup()
+                        .addGap(54, 54, 54)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jLabel55)
+                                    .addComponent(jLabel54)
+                                    .addComponent(jLabel53))
+                                .addGap(23, 23, 23)
+                                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(txtSaleInvID2, javax.swing.GroupLayout.PREFERRED_SIZE, 61, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusIvName2, javax.swing.GroupLayout.PREFERRED_SIZE, 306, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(txtCusIvPhone2, javax.swing.GroupLayout.PREFERRED_SIZE, 361, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(79, 79, 79))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addComponent(jLabel56)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvAddr2, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addContainerGap())
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addComponent(jLabel57)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvTotal2, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addContainerGap())
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addComponent(jLabel58)
+                                .addGap(23, 23, 23)
+                                .addComponent(txtCusIvPaid2, javax.swing.GroupLayout.PREFERRED_SIZE, 430, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addContainerGap())))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addGroup(jPanel11Layout.createSequentialGroup()
+                                        .addComponent(btnEditSaleIv2)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(btnPrintSaleQuote2)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(btnPrintSaleIv2))
+                                    .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jLabel59)
+                                        .addComponent(jScrollPane15, javax.swing.GroupLayout.PREFERRED_SIZE, 539, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addGap(20, 20, 20))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel11Layout.createSequentialGroup()
+                                .addComponent(jLabel44, javax.swing.GroupLayout.PREFERRED_SIZE, 152, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(207, 207, 207))))))
+        );
+        jPanel11Layout.setVerticalGroup(
+            jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel11Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(searchSaleIv2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnAddSaleIv2)
+                    .addComponent(jLabel44))
+                .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel11Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane16))
+                    .addGroup(jPanel11Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel53)
+                            .addComponent(txtSaleInvID2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(txtCusIvName2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel54))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel55)
+                            .addComponent(txtCusIvPhone2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel56)
+                            .addComponent(txtCusIvAddr2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel57)
+                            .addComponent(txtCusIvTotal2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel58)
+                            .addComponent(txtCusIvPaid2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel59)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jScrollPane15, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnPrintSaleIv2)
+                            .addComponent(btnPrintSaleQuote2)
+                            .addComponent(btnEditSaleIv2))
+                        .addGap(6, 6, 6)))
+                .addContainerGap())
+        );
+
+        jTabbedPane2.addTab("Vay hàng", jPanel11);
+
         javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
         jPanel8.setLayout(jPanel8Layout);
         jPanel8Layout.setHorizontalGroup(
             jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel8Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jTabbedPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 845, Short.MAX_VALUE)
-                .addContainerGap())
+                .addComponent(jTabbedPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 875, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel8Layout.setVerticalGroup(
             jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel8Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jTabbedPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 538, Short.MAX_VALUE)
-                .addContainerGap())
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel8Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(jTabbedPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 568, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         jTabbedPane1.addTab("Hoá đơn", jPanel8);
-
-        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
-        jPanel6.setLayout(jPanel6Layout);
-        jPanel6Layout.setHorizontalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 865, Short.MAX_VALUE)
-        );
-        jPanel6Layout.setVerticalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 560, Short.MAX_VALUE)
-        );
-
-        jTabbedPane1.addTab("Thống kê", jPanel6);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -1829,60 +2860,71 @@ public class MainUI extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 590, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 0, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void btnAddSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddSupplierActionPerformed
+    private void txtCusIvPaid2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvPaid2ActionPerformed
         // TODO add your handling code here:
-        listSupplier.setSelectedIndex(-1);
+    }//GEN-LAST:event_txtCusIvPaid2ActionPerformed
 
-        setEditingMode(true);
-        btnSupDel.setVisible(false);
-        isAdding = true;
-        btnSupSave.setText("Thêm");
-
-        txtSupName.setEnabled(true);
-        txtSupName.setBackground(Color.WHITE);
-        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupName.setText("");
-
-        txtSupPhone.setEnabled(true);
-        txtSupPhone.setBackground(Color.WHITE);
-        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupPhone.setText("");
-
-        txtSupNameBank.setEnabled(true);
-        txtSupNameBank.setBackground(Color.WHITE);
-        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupNameBank.setText("");
-
-        txtSupBankID.setEnabled(true);
-        txtSupBankID.setBackground(Color.WHITE);
-        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupBankID.setText("");
-
-        txtSupBank.setEnabled(true);
-        txtSupBank.setBackground(Color.WHITE);
-        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupBank.setText("");
-
-        txtSupAddr.setEnabled(true);
-        txtSupAddr.setBackground(Color.WHITE);
-        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtSupAddr.setText("");
-
-    }//GEN-LAST:event_btnAddSupplierActionPerformed
-
-    private void txtSupIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupIDActionPerformed
+    private void txtCusIvTotal2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvTotal2ActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_txtSupIDActionPerformed
+    }//GEN-LAST:event_txtCusIvTotal2ActionPerformed
 
-    private void txtFrdIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdIDActionPerformed
+    private void txtCusIvAddr2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvAddr2ActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_txtFrdIDActionPerformed
+    }//GEN-LAST:event_txtCusIvAddr2ActionPerformed
+
+    private void txtCusIvName2FocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusIvName2FocusGained
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvName2FocusGained
+
+    private void txtSaleInvID2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSaleInvID2ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSaleInvID2ActionPerformed
+
+    private void txtCusIvPaid1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvPaid1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvPaid1ActionPerformed
+
+    private void txtCusIvTotal1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvTotal1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvTotal1ActionPerformed
+
+    private void txtCusIvAddr1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvAddr1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvAddr1ActionPerformed
+
+    private void txtCusIvName1FocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusIvName1FocusGained
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvName1FocusGained
+
+    private void txtSaleInvID1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSaleInvID1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSaleInvID1ActionPerformed
+
+    private void txtCusIvPaidActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvPaidActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvPaidActionPerformed
+
+    private void txtCusIvTotalActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvTotalActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvTotalActionPerformed
+
+    private void txtCusIvAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIvAddrActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvAddrActionPerformed
+
+    private void txtCusIvNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusIvNameFocusGained
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIvNameFocusGained
+
+    private void txtSaleInvIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSaleInvIDActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSaleInvIDActionPerformed
 
     private void btnAddFriendActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddFriendActionPerformed
         // TODO add your handling code here:
@@ -1924,511 +2966,12 @@ public class MainUI extends javax.swing.JFrame {
         txtFrdAddr.setText("");
     }//GEN-LAST:event_btnAddFriendActionPerformed
 
-    private void txtCusIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIDActionPerformed
+    private void btnFrdAddIvActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdAddIvActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_txtCusIDActionPerformed
-
-    private void btnAddCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddCustomerActionPerformed
-        // TODO add your handling code here:
-        listCustomer.setSelectedIndex(-1);
-
-        setEditingMode(true);
-        btnCusDel.setVisible(false);
-        isAdding = true;
-        btnCusSave.setText("Thêm");
-
-        txtCusName.setEnabled(true);
-        txtCusName.setBackground(Color.WHITE);
-        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusName.setText("");
-
-        txtCusPhone.setEnabled(true);
-        txtCusPhone.setBackground(Color.WHITE);
-        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusPhone.setText("");
-
-        txtCusNameBank.setEnabled(true);
-        txtCusNameBank.setBackground(Color.WHITE);
-        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusNameBank.setText("");
-
-        txtCusBankID.setEnabled(true);
-        txtCusBankID.setBackground(Color.WHITE);
-        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusBankID.setText("");
-
-        txtCusBank.setEnabled(true);
-        txtCusBank.setBackground(Color.WHITE);
-        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusBank.setText("");
-
-        txtCusAddr.setEnabled(true);
-        txtCusAddr.setBackground(Color.WHITE);
-        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-        txtCusAddr.setText("");
-    }//GEN-LAST:event_btnAddCustomerActionPerformed
-
-    private void txtSupAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupAddrActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtSupAddrActionPerformed
-
-    private void btnAddProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddProductActionPerformed
-        // TODO add your handling code here:
-        ProductViewUI productViewUI = new ProductViewUI(this, rootPaneCheckingEnabled);
-        System.out.println("Thực hiện code này nè");
-        if (productViewUI.isDataChange) {
-            showProductTable();
-        }
-    }//GEN-LAST:event_btnAddProductActionPerformed
-
-    private void btnDelProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelProductActionPerformed
-        // TODO add your handling code here:
-        try {
-            int[] removeIndex = tableProduct.getSelectedRows();
-            System.out.println(removeIndex[0]);
-            //            System.out.println(removeIndex == null);
-            int check = JOptionPane.showConfirmDialog(rootPane, "Bạn Chắc chắn muốn xoá", "Xoá sản phẩm", JOptionPane.YES_NO_OPTION);
-            //            System.out.println(check);
-            if (check == 0) {
-                int index = removeIndex[0];
-                List<Product> rmProducts = new ArrayList<>();
-                for (int i : removeIndex) {
-                    System.out.println("i = " + i);
-                    Product p = productsList.get(index);
-                    rmProducts.add(p);
-                    EntityManager.productDAO.removeProduct(p);
-                }
-                productsList.removeAll(rmProducts);
-                showProductTable(productsList);
-            }
-
-        } catch (ArrayIndexOutOfBoundsException e) {
-            JOptionPane.showMessageDialog(rootPane, "Chọn một sản phẩm để xóa!");
-            e.printStackTrace();
-        }
-    }//GEN-LAST:event_btnDelProductActionPerformed
-
-    private void btnEditProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditProductActionPerformed
-        // TODO add your handling code here:
-        System.out.println(Arrays.toString(tableProduct.getSelectedRows()));
-        if (tableProduct.getSelectedRow() != -1) {
-            int select = tableProduct.getSelectedRow();
-            Product p = productsList.get(select);
-            System.out.println(select);
-            ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, p);
-            if (editproduct.isDataChange) {
-                showProductTable();
-            }
-        }
-    }//GEN-LAST:event_btnEditProductActionPerformed
-
-    private void btnSearchProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchProductActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_btnSearchProductActionPerformed
-
-    private void editSearchProductKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchProductKeyReleased
-        // TODO add your handling code here:
-        dataProductChanged();
-    }//GEN-LAST:event_editSearchProductKeyReleased
-
-    private void cboxSituationActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxSituationActionPerformed
-        // TODO add your handling code here:
-        if (cboxSituation.getSelectedItem().equals("Sắp đến")) {
-            lblTimeInProduct.setVisible(true);
-            txtTimeInProduct.setVisible(true);
-            txtTimeInProduct.setText(LocalDate.now().format(formatter));
-        } else {
-            lblTimeInProduct.setVisible(false);
-            txtTimeInProduct.setVisible(false);
-        }
-        dataProductChanged();
-    }//GEN-LAST:event_cboxSituationActionPerformed
-
-    private void cboxSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxSupplierActionPerformed
-        // TODO add your handling code here:
-        dataProductChanged();
-    }//GEN-LAST:event_cboxSupplierActionPerformed
-
-    private void txtTimeInProductKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtTimeInProductKeyReleased
-        // TODO add your handling code here:
-        dataProductChanged();
-    }//GEN-LAST:event_txtTimeInProductKeyReleased
-
-    private void cboxCategoryActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxCategoryActionPerformed
-        // TODO add your handling code here:
-        dataProductChanged();
-    }//GEN-LAST:event_cboxCategoryActionPerformed
-
-    private void editSearchSupplierKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchSupplierKeyReleased
-        // TODO add your handling code here:
-        Set<String> searchSet = new HashSet();
-        String[] keyISO = editSearchSupplier.getText().toLowerCase().trim().split(" ");
-        for (String pn
-                : supplierNameList) {
-            for (String text : keyISO) {
-                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
-                    searchSet.add(pn);
-                }
-            }
-        }
-        supplierNameModel.clear();
-        supplierNameModel.addAll(searchSet);
-//        lis
-    }//GEN-LAST:event_editSearchSupplierKeyReleased
-
-    private void txtSupNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupNameBankActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtSupNameBankActionPerformed
-
-    private void txtCusNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusNameBankActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtCusNameBankActionPerformed
-
-    private void txtCusAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusAddrActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtCusAddrActionPerformed
-
-    private void txtFrdNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdNameBankActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtFrdNameBankActionPerformed
-
-    private void txtFrdAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdAddrActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtFrdAddrActionPerformed
-
-    private void txtSupPhoneActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupPhoneActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_txtSupPhoneActionPerformed
-
-    private void btnSupEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupEditActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(true);
-
-        supId = EntityManager.supplierDAO.getSupplierIdbyName(txtSupName.getText());
-
-        btnSupSave.setText("Lưu");
-
-        txtSupName.setEnabled(true);
-        txtSupName.setBackground(Color.WHITE);
-        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtSupPhone.setEnabled(true);
-        txtSupPhone.setBackground(Color.WHITE);
-        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtSupNameBank.setEnabled(true);
-        txtSupNameBank.setBackground(Color.WHITE);
-        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtSupBankID.setEnabled(true);
-        txtSupBankID.setBackground(Color.WHITE);
-        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtSupBank.setEnabled(true);
-        txtSupBank.setBackground(Color.WHITE);
-        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtSupAddr.setEnabled(true);
-        txtSupAddr.setBackground(Color.WHITE);
-        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-    }//GEN-LAST:event_btnSupEditActionPerformed
-
-    private void btnSupCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupCancelActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(false);
-
-        showSupplier(listSupplier.getSelectedValue());
-
-        txtSupName.setEnabled(false);
-        txtSupName.setBackground(new Color(240, 240, 240));
-        txtSupName.setBorder(BorderFactory.createEmptyBorder());
-
-        txtSupPhone.setEnabled(false);
-        txtSupPhone.setBackground(new Color(240, 240, 240));
-        txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
-
-        txtSupNameBank.setEnabled(false);
-        txtSupNameBank.setBackground(new Color(240, 240, 240));
-        txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-        txtSupBankID.setEnabled(false);
-        txtSupBankID.setBackground(new Color(240, 240, 240));
-        txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
-
-        txtSupBank.setEnabled(false);
-        txtSupBank.setBackground(new Color(240, 240, 240));
-        txtSupBank.setBorder(BorderFactory.createEmptyBorder());
-
-        txtSupAddr.setEnabled(false);
-        txtSupAddr.setBackground(new Color(240, 240, 240));
-        txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
-    }//GEN-LAST:event_btnSupCancelActionPerformed
-
-    private void btnSupSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupSaveActionPerformed
-        // TODO add your handling code here:
-        if (!isAdding) {
-            try {
-                EntityManager.supplierDAO.updateSupplier(supId, txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
-                txtSupName.setEnabled(false);
-                txtSupName.setBackground(new Color(240, 240, 240));
-                txtSupName.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupPhone.setEnabled(false);
-                txtSupPhone.setBackground(new Color(240, 240, 240));
-                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupNameBank.setEnabled(false);
-                txtSupNameBank.setBackground(new Color(240, 240, 240));
-                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupBankID.setEnabled(false);
-                txtSupBankID.setBackground(new Color(240, 240, 240));
-                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupBank.setEnabled(false);
-                txtSupBank.setBackground(new Color(240, 240, 240));
-                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupAddr.setEnabled(false);
-                txtSupAddr.setBackground(new Color(240, 240, 240));
-                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
-
-                setEditingMode(false);
-
-                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
-                supplierNameModel.removeAllElements();
-                supplierNameModel.addAll(supplierNameList);
-//            listSupplier.setModel(supplierNameModel);
-                listSupplier.setSelectedValue(txtSupName.getText(), true);
-
-            } catch (SQLException ex) {
-                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-                lblSupExist.setVisible(true);
-            }
-        } else {
-            try {
-                EntityManager.supplierDAO.insertProduct(txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
-                txtSupName.setEnabled(false);
-                txtSupName.setBackground(new Color(240, 240, 240));
-                txtSupName.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupPhone.setEnabled(false);
-                txtSupPhone.setBackground(new Color(240, 240, 240));
-                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupNameBank.setEnabled(false);
-                txtSupNameBank.setBackground(new Color(240, 240, 240));
-                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupBankID.setEnabled(false);
-                txtSupBankID.setBackground(new Color(240, 240, 240));
-                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupBank.setEnabled(false);
-                txtSupBank.setBackground(new Color(240, 240, 240));
-                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtSupAddr.setEnabled(false);
-                txtSupAddr.setBackground(new Color(240, 240, 240));
-                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
-
-                setEditingMode(false);
-
-                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
-                supplierNameModel.removeAllElements();
-                supplierNameModel.addAll(supplierNameList);
-
-                listSupplier.setSelectedValue(txtSupName.getText(), true);
-
-            } catch (SQLException ex) {
-                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-                lblSupExist.setVisible(true);
-            }
-        }
-    }//GEN-LAST:event_btnSupSaveActionPerformed
-
-    private void txtSupNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtSupNameFocusGained
-        // TODO add your handling code here:
-        lblSupExist.setVisible(false);
-    }//GEN-LAST:event_txtSupNameFocusGained
-
-    private void btnCusDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusDelActionPerformed
-        try {
-            // TODO add your handling code here:
-            EntityManager.customerDAO.removeCustomer(cusId);
-
-            customersNameList = EntityManager.customerDAO.getCustomersName();
-            customerNameModel.removeAllElements();
-            customerNameModel.addAll(customersNameList);
-            txtCusName.setEnabled(false);
-            txtCusName.setBackground(new Color(240, 240, 240));
-            txtCusName.setBorder(BorderFactory.createEmptyBorder());
-
-            txtCusPhone.setEnabled(false);
-            txtCusPhone.setBackground(new Color(240, 240, 240));
-            txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
-
-            txtCusNameBank.setEnabled(false);
-            txtCusNameBank.setBackground(new Color(240, 240, 240));
-            txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-            txtCusBankID.setEnabled(false);
-            txtCusBankID.setBackground(new Color(240, 240, 240));
-            txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
-
-            txtCusBank.setEnabled(false);
-            txtCusBank.setBackground(new Color(240, 240, 240));
-            txtCusBank.setBorder(BorderFactory.createEmptyBorder());
-
-            txtCusAddr.setEnabled(false);
-            txtCusAddr.setBackground(new Color(240, 240, 240));
-            txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
-            setEditingMode(false);
-            showCustomer(null);
-        } catch (Exception ex) {
-            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(rootPane, "Khách hàng đã có hoá đơn, không thể xoá");
-        }
-    }//GEN-LAST:event_btnCusDelActionPerformed
-
-    private void btnSupDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupDelActionPerformed
-        try {
-            // TODO add your handling code here:
-            EntityManager.supplierDAO.removeSupplier(supId);
-
-            supplierNameList = EntityManager.supplierDAO.getSuppliersName();
-            supplierNameModel.removeAllElements();
-            supplierNameModel.addAll(supplierNameList);
-            setEditingMode(false);
-            txtSupName.setEnabled(false);
-            txtSupName.setBackground(new Color(240, 240, 240));
-            txtSupName.setBorder(BorderFactory.createEmptyBorder());
-
-            txtSupPhone.setEnabled(false);
-            txtSupPhone.setBackground(new Color(240, 240, 240));
-            txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
-
-            txtSupNameBank.setEnabled(false);
-            txtSupNameBank.setBackground(new Color(240, 240, 240));
-            txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-            txtSupBankID.setEnabled(false);
-            txtSupBankID.setBackground(new Color(240, 240, 240));
-            txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
-
-            txtSupBank.setEnabled(false);
-            txtSupBank.setBackground(new Color(240, 240, 240));
-            txtSupBank.setBorder(BorderFactory.createEmptyBorder());
-
-            txtSupAddr.setEnabled(false);
-            txtSupAddr.setBackground(new Color(240, 240, 240));
-            txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
-            showSupplier(null);
-        } catch (Exception ex) {
-            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(rootPane, "Nhà cung cấp đã có hoá đơn, không thể xoá");
-        }
-
-    }//GEN-LAST:event_btnSupDelActionPerformed
-
-    private void editSearchCustomerKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchCustomerKeyReleased
-        // TODO add your handling code here:
-        Set<String> searchSet = new HashSet();
-        String[] keyISO = editSearchCustomer.getText().toLowerCase().trim().split(" ");
-        for (String pn
-                : customersNameList) {
-            for (String text : keyISO) {
-                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
-                    searchSet.add(pn);
-                }
-            }
-        }
-        customerNameModel.clear();
-        customerNameModel.addAll(searchSet);
-    }//GEN-LAST:event_editSearchCustomerKeyReleased
-
-    private void editSearchFriendKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchFriendKeyReleased
-        // TODO add your handling code here:
-        Set<String> searchSet = new HashSet<String>();
-        String[] keyISO = editSearchFriend.getText().toLowerCase().trim().split(" ");
-        for (String pn
-                : friendsNameList) {
-            for (String text : keyISO) {
-                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
-                    searchSet.add(pn);
-                }
-            }
-        }
-        friendsNameModel.clear();
-        friendsNameModel.addAll(new ArrayList<String>(searchSet));
-    }//GEN-LAST:event_editSearchFriendKeyReleased
-
-    private void btnCusEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusEditActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(true);
-
-        cusId = EntityManager.customerDAO.getCustomerIdbyName(txtCusName.getText());
-
-        btnCusSave.setText("Lưu");
-
-        txtCusName.setEnabled(true);
-        txtCusName.setBackground(Color.WHITE);
-        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtCusPhone.setEnabled(true);
-        txtCusPhone.setBackground(Color.WHITE);
-        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtCusNameBank.setEnabled(true);
-        txtCusNameBank.setBackground(Color.WHITE);
-        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtCusBankID.setEnabled(true);
-        txtCusBankID.setBackground(Color.WHITE);
-        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtCusBank.setEnabled(true);
-        txtCusBank.setBackground(Color.WHITE);
-        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtCusAddr.setEnabled(true);
-        txtCusAddr.setBackground(Color.WHITE);
-        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-    }//GEN-LAST:event_btnCusEditActionPerformed
-
-    private void btnFrdEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdEditActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(true);
-
-        friendId = EntityManager.friendAgencyDAO.getFriendIdbyName(txtFrdName.getText());
-
-        btnFrdSave.setText("Lưu");
-
-        txtFrdName.setEnabled(true);
-        txtFrdName.setBackground(Color.WHITE);
-        txtFrdName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtFrdPhone.setEnabled(true);
-        txtFrdPhone.setBackground(Color.WHITE);
-        txtFrdPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtFrdNameBank.setEnabled(true);
-        txtFrdNameBank.setBackground(Color.WHITE);
-        txtFrdNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtFrdBankID.setEnabled(true);
-        txtFrdBankID.setBackground(Color.WHITE);
-        txtFrdBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtFrdBank.setEnabled(true);
-        txtFrdBank.setBackground(Color.WHITE);
-        txtFrdBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-
-        txtFrdAddr.setEnabled(true);
-        txtFrdAddr.setBackground(Color.WHITE);
-        txtFrdAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
-    }//GEN-LAST:event_btnFrdEditActionPerformed
+        AddInvoiceUI addInvoice = new AddInvoiceUI(this, isAdding, EntityManager.friendAgencyDAO.getFriendAgency(friendId), 3);
+        addInvoice.setLocationRelativeTo(null);
+        addInvoice.setVisible(true);
+    }//GEN-LAST:event_btnFrdAddIvActionPerformed
 
     private void btnFrdDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdDelActionPerformed
         try {
@@ -2469,158 +3012,46 @@ public class MainUI extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_btnFrdDelActionPerformed
 
-    private void btnCusSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusSaveActionPerformed
+    private void txtFrdAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdAddrActionPerformed
         // TODO add your handling code here:
-        if (!isAdding) {
-            try {
-                EntityManager.customerDAO.updateCustomer(cusId, txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
-                txtCusName.setEnabled(false);
-                txtCusName.setBackground(new Color(240, 240, 240));
-                txtCusName.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_txtFrdAddrActionPerformed
 
-                txtCusPhone.setEnabled(false);
-                txtCusPhone.setBackground(new Color(240, 240, 240));
-                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusNameBank.setEnabled(false);
-                txtCusNameBank.setBackground(new Color(240, 240, 240));
-                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusBankID.setEnabled(false);
-                txtCusBankID.setBackground(new Color(240, 240, 240));
-                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusBank.setEnabled(false);
-                txtCusBank.setBackground(new Color(240, 240, 240));
-                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusAddr.setEnabled(false);
-                txtCusAddr.setBackground(new Color(240, 240, 240));
-                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
-
-                setEditingMode(false);
-
-                customersNameList = EntityManager.customerDAO.getCustomersName();
-                customerNameModel.removeAllElements();
-                customerNameModel.addAll(customersNameList);
-                listCustomer.setSelectedValue(txtCusName.getText(), true);
-
-            } catch (SQLException ex) {
-                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-                lblCusExist.setVisible(true);
-            }
-        } else {
-            try {
-                EntityManager.customerDAO.insertCustomer(txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
-                txtCusName.setEnabled(false);
-                txtCusName.setBackground(new Color(240, 240, 240));
-                txtCusName.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusPhone.setEnabled(false);
-                txtCusPhone.setBackground(new Color(240, 240, 240));
-                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusNameBank.setEnabled(false);
-                txtCusNameBank.setBackground(new Color(240, 240, 240));
-                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusBankID.setEnabled(false);
-                txtCusBankID.setBackground(new Color(240, 240, 240));
-                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusBank.setEnabled(false);
-                txtCusBank.setBackground(new Color(240, 240, 240));
-                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
-
-                txtCusAddr.setEnabled(false);
-                txtCusAddr.setBackground(new Color(240, 240, 240));
-                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
-
-                setEditingMode(false);
-
-                customersNameList = EntityManager.customerDAO.getCustomersName();
-                customerNameModel.removeAllElements();
-                customerNameModel.addAll(customersNameList);
-                listCustomer.setSelectedValue(txtCusName.getText(), true);
-
-            } catch (SQLException ex) {
-                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
-                lblCusExist.setVisible(true);
-            }
-        }
-    }//GEN-LAST:event_btnCusSaveActionPerformed
-
-    private void txtCusNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusNameFocusGained
+    private void txtFrdNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdNameBankActionPerformed
         // TODO add your handling code here:
-        lblCusExist.setVisible(false);
-    }//GEN-LAST:event_txtCusNameFocusGained
+    }//GEN-LAST:event_txtFrdNameBankActionPerformed
 
-    private void txtFrdNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtFrdNameFocusGained
+    private void btnFrdEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdEditActionPerformed
         // TODO add your handling code here:
-        lblFrdExist.setVisible(false);
-    }//GEN-LAST:event_txtFrdNameFocusGained
+        setEditingMode(true);
 
-    private void btnCusCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusCancelActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(false);
+        friendId = EntityManager.friendAgencyDAO.getFriendIdbyName(txtFrdName.getText());
 
-        showCustomer(listCustomer.getSelectedValue());
+        btnFrdSave.setText("Lưu");
 
-        txtCusName.setEnabled(false);
-        txtCusName.setBackground(new Color(240, 240, 240));
-        txtCusName.setBorder(BorderFactory.createEmptyBorder());
+        txtFrdName.setEnabled(true);
+        txtFrdName.setBackground(Color.WHITE);
+        txtFrdName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
-        txtCusPhone.setEnabled(false);
-        txtCusPhone.setBackground(new Color(240, 240, 240));
-        txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+        txtFrdPhone.setEnabled(true);
+        txtFrdPhone.setBackground(Color.WHITE);
+        txtFrdPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
-        txtCusNameBank.setEnabled(false);
-        txtCusNameBank.setBackground(new Color(240, 240, 240));
-        txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+        txtFrdNameBank.setEnabled(true);
+        txtFrdNameBank.setBackground(Color.WHITE);
+        txtFrdNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
-        txtCusBankID.setEnabled(false);
-        txtCusBankID.setBackground(new Color(240, 240, 240));
-        txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+        txtFrdBankID.setEnabled(true);
+        txtFrdBankID.setBackground(Color.WHITE);
+        txtFrdBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
-        txtCusBank.setEnabled(false);
-        txtCusBank.setBackground(new Color(240, 240, 240));
-        txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+        txtFrdBank.setEnabled(true);
+        txtFrdBank.setBackground(Color.WHITE);
+        txtFrdBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
-        txtCusAddr.setEnabled(false);
-        txtCusAddr.setBackground(new Color(240, 240, 240));
-        txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
-    }//GEN-LAST:event_btnCusCancelActionPerformed
-
-    private void btnFrdCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdCancelActionPerformed
-        // TODO add your handling code here:
-        setEditingMode(false);
-
-        showFriend(listFriend.getSelectedValue());
-
-        txtFrdName.setEnabled(false);
-        txtFrdName.setBackground(new Color(240, 240, 240));
-        txtFrdName.setBorder(BorderFactory.createEmptyBorder());
-
-        txtFrdPhone.setEnabled(false);
-        txtFrdPhone.setBackground(new Color(240, 240, 240));
-        txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
-
-        txtFrdNameBank.setEnabled(false);
-        txtFrdNameBank.setBackground(new Color(240, 240, 240));
-        txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
-
-        txtFrdBankID.setEnabled(false);
-        txtFrdBankID.setBackground(new Color(240, 240, 240));
-        txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
-
-        txtFrdBank.setEnabled(false);
-        txtFrdBank.setBackground(new Color(240, 240, 240));
-        txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
-
-        txtFrdAddr.setEnabled(false);
-        txtFrdAddr.setBackground(new Color(240, 240, 240));
-        txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
-    }//GEN-LAST:event_btnFrdCancelActionPerformed
+        txtFrdAddr.setEnabled(true);
+        txtFrdAddr.setBackground(Color.WHITE);
+        txtFrdAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+    }//GEN-LAST:event_btnFrdEditActionPerformed
 
     private void btnFrdSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdSaveActionPerformed
         // TODO add your handling code here:
@@ -2703,26 +3134,738 @@ public class MainUI extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_btnFrdSaveActionPerformed
 
-    private void listCustomerValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listCustomerValueChanged
+    private void btnFrdCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFrdCancelActionPerformed
         // TODO add your handling code here:
-        String custumerName = listCustomer.getSelectedValue();
-        showCustomer(custumerName);
-        showSalesInvoiceTree(EntityManager.customerDAO.getCustomerIdbyName(custumerName));
-    }//GEN-LAST:event_listCustomerValueChanged
+        setEditingMode(false);
 
-    private void listSupplierValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listSupplierValueChanged
+        showFriend(listFriend.getSelectedValue());
+
+        txtFrdName.setEnabled(false);
+        txtFrdName.setBackground(new Color(240, 240, 240));
+        txtFrdName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdPhone.setEnabled(false);
+        txtFrdPhone.setBackground(new Color(240, 240, 240));
+        txtFrdPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdNameBank.setEnabled(false);
+        txtFrdNameBank.setBackground(new Color(240, 240, 240));
+        txtFrdNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdBankID.setEnabled(false);
+        txtFrdBankID.setBackground(new Color(240, 240, 240));
+        txtFrdBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdBank.setEnabled(false);
+        txtFrdBank.setBackground(new Color(240, 240, 240));
+        txtFrdBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtFrdAddr.setEnabled(false);
+        txtFrdAddr.setBackground(new Color(240, 240, 240));
+        txtFrdAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnFrdCancelActionPerformed
+
+    private void txtFrdNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtFrdNameFocusGained
         // TODO add your handling code here:
-        String supplierName = listSupplier.getSelectedValue();
-        showSupplier(supplierName);
-        showImportInvoiceTree(EntityManager.supplierDAO.getSupplierIdbyName(supplierName));
-    }//GEN-LAST:event_listSupplierValueChanged
+        lblFrdExist.setVisible(false);
+    }//GEN-LAST:event_txtFrdNameFocusGained
+
+    private void txtFrdIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFrdIDActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtFrdIDActionPerformed
+
+    private void editSearchFriendKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchFriendKeyReleased
+        // TODO add your handling code here:
+        Set<String> searchSet = new HashSet<String>();
+        String[] keyISO = editSearchFriend.getText().toLowerCase().trim().split(" ");
+        for (String pn
+            : friendsNameList) {
+            for (String text : keyISO) {
+                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
+                    searchSet.add(pn);
+                }
+            }
+        }
+        friendsNameModel.clear();
+        friendsNameModel.addAll(new ArrayList<String>(searchSet));
+    }//GEN-LAST:event_editSearchFriendKeyReleased
 
     private void listFriendValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listFriendValueChanged
         // TODO add your handling code here:
         String friendName = listFriend.getSelectedValue();
+        friendId = EntityManager.friendAgencyDAO.getFriendIdbyName(friendName);
         showFriend(friendName);
-        showLoanInvoiceTree(EntityManager.friendAgencyDAO.getFriendIdbyName(friendName));
+        showLoanInvoiceTree(friendId);
     }//GEN-LAST:event_listFriendValueChanged
+
+    private void btnAddSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddSupplierActionPerformed
+        // TODO add your handling code here:
+        listSupplier.setSelectedIndex(-1);
+
+        setEditingMode(true);
+        btnSupDel.setVisible(false);
+        isAdding = true;
+        btnSupSave.setText("Thêm");
+
+        txtSupName.setEnabled(true);
+        txtSupName.setBackground(Color.WHITE);
+        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupName.setText("");
+
+        txtSupPhone.setEnabled(true);
+        txtSupPhone.setBackground(Color.WHITE);
+        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupPhone.setText("");
+
+        txtSupNameBank.setEnabled(true);
+        txtSupNameBank.setBackground(Color.WHITE);
+        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupNameBank.setText("");
+
+        txtSupBankID.setEnabled(true);
+        txtSupBankID.setBackground(Color.WHITE);
+        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupBankID.setText("");
+
+        txtSupBank.setEnabled(true);
+        txtSupBank.setBackground(Color.WHITE);
+        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupBank.setText("");
+
+        txtSupAddr.setEnabled(true);
+        txtSupAddr.setBackground(Color.WHITE);
+        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtSupAddr.setText("");
+    }//GEN-LAST:event_btnAddSupplierActionPerformed
+
+    private void btnSupAddIvActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupAddIvActionPerformed
+        // TODO add your handling code here:
+        AddInvoiceUI addInvoice = new AddInvoiceUI(this, isAdding, EntityManager.supplierDAO.getSupplier(supId), 1);
+        addInvoice.setLocationRelativeTo(null);
+        addInvoice.setVisible(true);
+    }//GEN-LAST:event_btnSupAddIvActionPerformed
+
+    private void btnSupDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupDelActionPerformed
+        try {
+            // TODO add your handling code here:
+            EntityManager.supplierDAO.removeSupplier(supId);
+
+            supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+            supplierNameModel.removeAllElements();
+            supplierNameModel.addAll(supplierNameList);
+            setEditingMode(false);
+            txtSupName.setEnabled(false);
+            txtSupName.setBackground(new Color(240, 240, 240));
+            txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupPhone.setEnabled(false);
+            txtSupPhone.setBackground(new Color(240, 240, 240));
+            txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupNameBank.setEnabled(false);
+            txtSupNameBank.setBackground(new Color(240, 240, 240));
+            txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupBankID.setEnabled(false);
+            txtSupBankID.setBackground(new Color(240, 240, 240));
+            txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupBank.setEnabled(false);
+            txtSupBank.setBackground(new Color(240, 240, 240));
+            txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtSupAddr.setEnabled(false);
+            txtSupAddr.setBackground(new Color(240, 240, 240));
+            txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+            showSupplier(null);
+        } catch (Exception ex) {
+            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(rootPane, "Nhà cung cấp đã có hoá đơn, không thể xoá");
+        }
+    }//GEN-LAST:event_btnSupDelActionPerformed
+
+    private void txtSupNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupNameBankActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSupNameBankActionPerformed
+
+    private void txtSupAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupAddrActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSupAddrActionPerformed
+
+    private void btnSupEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupEditActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(true);
+
+        supId = EntityManager.supplierDAO.getSupplierIdbyName(txtSupName.getText());
+
+        btnSupSave.setText("Lưu");
+
+        txtSupName.setEnabled(true);
+        txtSupName.setBackground(Color.WHITE);
+        txtSupName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupPhone.setEnabled(true);
+        txtSupPhone.setBackground(Color.WHITE);
+        txtSupPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupNameBank.setEnabled(true);
+        txtSupNameBank.setBackground(Color.WHITE);
+        txtSupNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupBankID.setEnabled(true);
+        txtSupBankID.setBackground(Color.WHITE);
+        txtSupBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupBank.setEnabled(true);
+        txtSupBank.setBackground(Color.WHITE);
+        txtSupBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtSupAddr.setEnabled(true);
+        txtSupAddr.setBackground(Color.WHITE);
+        txtSupAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+    }//GEN-LAST:event_btnSupEditActionPerformed
+
+    private void btnSupSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupSaveActionPerformed
+        // TODO add your handling code here:
+        if (!isAdding) {
+            try {
+                EntityManager.supplierDAO.updateSupplier(supId, txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
+                txtSupName.setEnabled(false);
+                txtSupName.setBackground(new Color(240, 240, 240));
+                txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupPhone.setEnabled(false);
+                txtSupPhone.setBackground(new Color(240, 240, 240));
+                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupNameBank.setEnabled(false);
+                txtSupNameBank.setBackground(new Color(240, 240, 240));
+                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBankID.setEnabled(false);
+                txtSupBankID.setBackground(new Color(240, 240, 240));
+                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBank.setEnabled(false);
+                txtSupBank.setBackground(new Color(240, 240, 240));
+                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupAddr.setEnabled(false);
+                txtSupAddr.setBackground(new Color(240, 240, 240));
+                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+                supplierNameModel.removeAllElements();
+                supplierNameModel.addAll(supplierNameList);
+                //            listSupplier.setModel(supplierNameModel);
+                listSupplier.setSelectedValue(txtSupName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblSupExist.setVisible(true);
+            }
+        } else {
+            try {
+                EntityManager.supplierDAO.insertProduct(txtSupName.getText(), txtSupPhone.getText(), txtSupAddr.getText(), txtSupNameBank.getText(), txtSupBankID.getText(), txtSupBank.getText());
+                txtSupName.setEnabled(false);
+                txtSupName.setBackground(new Color(240, 240, 240));
+                txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupPhone.setEnabled(false);
+                txtSupPhone.setBackground(new Color(240, 240, 240));
+                txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupNameBank.setEnabled(false);
+                txtSupNameBank.setBackground(new Color(240, 240, 240));
+                txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBankID.setEnabled(false);
+                txtSupBankID.setBackground(new Color(240, 240, 240));
+                txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupBank.setEnabled(false);
+                txtSupBank.setBackground(new Color(240, 240, 240));
+                txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtSupAddr.setEnabled(false);
+                txtSupAddr.setBackground(new Color(240, 240, 240));
+                txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                supplierNameList = EntityManager.supplierDAO.getSuppliersName();
+                supplierNameModel.removeAllElements();
+                supplierNameModel.addAll(supplierNameList);
+
+                listSupplier.setSelectedValue(txtSupName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblSupExist.setVisible(true);
+            }
+        }
+    }//GEN-LAST:event_btnSupSaveActionPerformed
+
+    private void btnSupCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSupCancelActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(false);
+
+        showSupplier(listSupplier.getSelectedValue());
+
+        txtSupName.setEnabled(false);
+        txtSupName.setBackground(new Color(240, 240, 240));
+        txtSupName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupPhone.setEnabled(false);
+        txtSupPhone.setBackground(new Color(240, 240, 240));
+        txtSupPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupNameBank.setEnabled(false);
+        txtSupNameBank.setBackground(new Color(240, 240, 240));
+        txtSupNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupBankID.setEnabled(false);
+        txtSupBankID.setBackground(new Color(240, 240, 240));
+        txtSupBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupBank.setEnabled(false);
+        txtSupBank.setBackground(new Color(240, 240, 240));
+        txtSupBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtSupAddr.setEnabled(false);
+        txtSupAddr.setBackground(new Color(240, 240, 240));
+        txtSupAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnSupCancelActionPerformed
+
+    private void txtSupPhoneActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupPhoneActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSupPhoneActionPerformed
+
+    private void txtSupNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtSupNameFocusGained
+        // TODO add your handling code here:
+        lblSupExist.setVisible(false);
+    }//GEN-LAST:event_txtSupNameFocusGained
+
+    private void txtSupIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSupIDActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtSupIDActionPerformed
+
+    private void editSearchSupplierKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchSupplierKeyReleased
+        // TODO add your handling code here:
+        Set<String> searchSet = new HashSet();
+        String[] keyISO = editSearchSupplier.getText().toLowerCase().trim().split(" ");
+        for (String pn
+            : supplierNameList) {
+            for (String text : keyISO) {
+                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
+                    searchSet.add(pn);
+                }
+            }
+        }
+        supplierNameModel.clear();
+        supplierNameModel.addAll(searchSet);
+        //        lis
+    }//GEN-LAST:event_editSearchSupplierKeyReleased
+
+    private void listSupplierValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listSupplierValueChanged
+        // TODO add your handling code here:
+        String supplierName = listSupplier.getSelectedValue();
+        supId = EntityManager.supplierDAO.getSupplierIdbyName(supplierName);
+        showSupplier(supplierName);
+        showImportInvoiceTree(supId);
+    }//GEN-LAST:event_listSupplierValueChanged
+
+    private void listCustomerValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listCustomerValueChanged
+        // TODO add your handling code here:
+        String custumerName = listCustomer.getSelectedValue();
+        cusId = EntityManager.customerDAO.getCustomerIdbyName(custumerName);
+        showCustomer(custumerName);
+        showSalesInvoiceTree(cusId);
+    }//GEN-LAST:event_listCustomerValueChanged
+
+    private void btnAddCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddCustomerActionPerformed
+        // TODO add your handling code here:
+        listCustomer.setSelectedIndex(-1);
+
+        setEditingMode(true);
+        btnCusDel.setVisible(false);
+        isAdding = true;
+        btnCusSave.setText("Thêm");
+
+        txtCusName.setEnabled(true);
+        txtCusName.setBackground(Color.WHITE);
+        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusName.setText("");
+
+        txtCusPhone.setEnabled(true);
+        txtCusPhone.setBackground(Color.WHITE);
+        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusPhone.setText("");
+
+        txtCusNameBank.setEnabled(true);
+        txtCusNameBank.setBackground(Color.WHITE);
+        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusNameBank.setText("");
+
+        txtCusBankID.setEnabled(true);
+        txtCusBankID.setBackground(Color.WHITE);
+        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusBankID.setText("");
+
+        txtCusBank.setEnabled(true);
+        txtCusBank.setBackground(Color.WHITE);
+        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusBank.setText("");
+
+        txtCusAddr.setEnabled(true);
+        txtCusAddr.setBackground(Color.WHITE);
+        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        txtCusAddr.setText("");
+    }//GEN-LAST:event_btnAddCustomerActionPerformed
+
+    private void editSearchCustomerKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchCustomerKeyReleased
+        // TODO add your handling code here:
+        Set<String> searchSet = new HashSet();
+        String[] keyISO = editSearchCustomer.getText().toLowerCase().trim().split(" ");
+        for (String pn
+            : customersNameList) {
+            for (String text : keyISO) {
+                if (pn.toLowerCase().replaceAll(".,", "").contains(text)) {
+                    searchSet.add(pn);
+                }
+            }
+        }
+        customerNameModel.clear();
+        customerNameModel.addAll(searchSet);
+    }//GEN-LAST:event_editSearchCustomerKeyReleased
+
+    private void btnCusAddIvActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusAddIvActionPerformed
+        // TODO add your handling code here:
+        AddInvoiceUI addInvoice = new AddInvoiceUI(this, isAdding, EntityManager.customerDAO.getCustomer(cusId), 2);
+        addInvoice.setLocationRelativeTo(null);
+        addInvoice.setVisible(true);
+    }//GEN-LAST:event_btnCusAddIvActionPerformed
+
+    private void btnCusDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusDelActionPerformed
+        try {
+            // TODO add your handling code here:
+            EntityManager.customerDAO.removeCustomer(cusId);
+
+            customersNameList = EntityManager.customerDAO.getCustomersName();
+            customerNameModel.removeAllElements();
+            customerNameModel.addAll(customersNameList);
+            txtCusName.setEnabled(false);
+            txtCusName.setBackground(new Color(240, 240, 240));
+            txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusPhone.setEnabled(false);
+            txtCusPhone.setBackground(new Color(240, 240, 240));
+            txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusNameBank.setEnabled(false);
+            txtCusNameBank.setBackground(new Color(240, 240, 240));
+            txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusBankID.setEnabled(false);
+            txtCusBankID.setBackground(new Color(240, 240, 240));
+            txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusBank.setEnabled(false);
+            txtCusBank.setBackground(new Color(240, 240, 240));
+            txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+            txtCusAddr.setEnabled(false);
+            txtCusAddr.setBackground(new Color(240, 240, 240));
+            txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+            setEditingMode(false);
+            showCustomer(null);
+        } catch (Exception ex) {
+            Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(rootPane, "Khách hàng đã có hoá đơn, không thể xoá");
+        }
+    }//GEN-LAST:event_btnCusDelActionPerformed
+
+    private void txtCusAddrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusAddrActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusAddrActionPerformed
+
+    private void txtCusNameBankActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusNameBankActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusNameBankActionPerformed
+
+    private void btnCusEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusEditActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(true);
+
+        btnCusSave.setText("Lưu");
+
+        txtCusName.setEnabled(true);
+        txtCusName.setBackground(Color.WHITE);
+        txtCusName.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusPhone.setEnabled(true);
+        txtCusPhone.setBackground(Color.WHITE);
+        txtCusPhone.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusNameBank.setEnabled(true);
+        txtCusNameBank.setBackground(Color.WHITE);
+        txtCusNameBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusBankID.setEnabled(true);
+        txtCusBankID.setBackground(Color.WHITE);
+        txtCusBankID.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusBank.setEnabled(true);
+        txtCusBank.setBackground(Color.WHITE);
+        txtCusBank.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        txtCusAddr.setEnabled(true);
+        txtCusAddr.setBackground(Color.WHITE);
+        txtCusAddr.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+    }//GEN-LAST:event_btnCusEditActionPerformed
+
+    private void btnCusSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusSaveActionPerformed
+        // TODO add your handling code here:
+        if (!isAdding) {
+            try {
+                EntityManager.customerDAO.updateCustomer(cusId, txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
+                txtCusName.setEnabled(false);
+                txtCusName.setBackground(new Color(240, 240, 240));
+                txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusPhone.setEnabled(false);
+                txtCusPhone.setBackground(new Color(240, 240, 240));
+                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusNameBank.setEnabled(false);
+                txtCusNameBank.setBackground(new Color(240, 240, 240));
+                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBankID.setEnabled(false);
+                txtCusBankID.setBackground(new Color(240, 240, 240));
+                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBank.setEnabled(false);
+                txtCusBank.setBackground(new Color(240, 240, 240));
+                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusAddr.setEnabled(false);
+                txtCusAddr.setBackground(new Color(240, 240, 240));
+                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                customersNameList = EntityManager.customerDAO.getCustomersName();
+                customerNameModel.removeAllElements();
+                customerNameModel.addAll(customersNameList);
+                listCustomer.setSelectedValue(txtCusName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblCusExist.setVisible(true);
+            }
+        } else {
+            try {
+                EntityManager.customerDAO.insertCustomer(txtCusName.getText(), txtCusPhone.getText(), txtCusAddr.getText(), txtCusNameBank.getText(), txtCusBankID.getText(), txtCusBank.getText());
+                txtCusName.setEnabled(false);
+                txtCusName.setBackground(new Color(240, 240, 240));
+                txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusPhone.setEnabled(false);
+                txtCusPhone.setBackground(new Color(240, 240, 240));
+                txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusNameBank.setEnabled(false);
+                txtCusNameBank.setBackground(new Color(240, 240, 240));
+                txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBankID.setEnabled(false);
+                txtCusBankID.setBackground(new Color(240, 240, 240));
+                txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusBank.setEnabled(false);
+                txtCusBank.setBackground(new Color(240, 240, 240));
+                txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+                txtCusAddr.setEnabled(false);
+                txtCusAddr.setBackground(new Color(240, 240, 240));
+                txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+
+                setEditingMode(false);
+
+                customersNameList = EntityManager.customerDAO.getCustomersName();
+                customerNameModel.removeAllElements();
+                customerNameModel.addAll(customersNameList);
+                listCustomer.setSelectedValue(txtCusName.getText(), true);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(MainUI.class.getName()).log(Level.SEVERE, null, ex);
+                lblCusExist.setVisible(true);
+            }
+        }
+    }//GEN-LAST:event_btnCusSaveActionPerformed
+
+    private void btnCusCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCusCancelActionPerformed
+        // TODO add your handling code here:
+        setEditingMode(false);
+
+        showCustomer(listCustomer.getSelectedValue());
+
+        txtCusName.setEnabled(false);
+        txtCusName.setBackground(new Color(240, 240, 240));
+        txtCusName.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusPhone.setEnabled(false);
+        txtCusPhone.setBackground(new Color(240, 240, 240));
+        txtCusPhone.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusNameBank.setEnabled(false);
+        txtCusNameBank.setBackground(new Color(240, 240, 240));
+        txtCusNameBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusBankID.setEnabled(false);
+        txtCusBankID.setBackground(new Color(240, 240, 240));
+        txtCusBankID.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusBank.setEnabled(false);
+        txtCusBank.setBackground(new Color(240, 240, 240));
+        txtCusBank.setBorder(BorderFactory.createEmptyBorder());
+
+        txtCusAddr.setEnabled(false);
+        txtCusAddr.setBackground(new Color(240, 240, 240));
+        txtCusAddr.setBorder(BorderFactory.createEmptyBorder());
+    }//GEN-LAST:event_btnCusCancelActionPerformed
+
+    private void txtCusNameFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtCusNameFocusGained
+        // TODO add your handling code here:
+        lblCusExist.setVisible(false);
+    }//GEN-LAST:event_txtCusNameFocusGained
+
+    private void txtCusIDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtCusIDActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtCusIDActionPerformed
+
+    private void txtTimeInProductKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtTimeInProductKeyReleased
+        // TODO add your handling code here:
+        dataProductChanged();
+    }//GEN-LAST:event_txtTimeInProductKeyReleased
+
+    private void cboxSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxSupplierActionPerformed
+        // TODO add your handling code here:
+        dataProductChanged();
+    }//GEN-LAST:event_cboxSupplierActionPerformed
+
+    private void btnAddProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddProductActionPerformed
+        // TODO add your handling code here:
+        ProductViewUI productViewUI = new ProductViewUI(this, rootPaneCheckingEnabled);
+        System.out.println("Thực hiện code này nè");
+        if (productViewUI.isDataChange) {
+            showProductTable();
+        }
+    }//GEN-LAST:event_btnAddProductActionPerformed
+
+    private void btnDelProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelProductActionPerformed
+        // TODO add your handling code here:
+        try {
+            int[] removeIndex = tableProduct.getSelectedRows();
+            System.out.println(removeIndex[0]);
+            //            System.out.println(removeIndex == null);
+            int check = JOptionPane.showConfirmDialog(rootPane, "Bạn Chắc chắn muốn xoá", "Xoá sản phẩm", JOptionPane.YES_NO_OPTION);
+            //            System.out.println(check);
+            if (check == 0) {
+                int index = removeIndex[0];
+                List<Product> rmProducts = new ArrayList<>();
+                for (int i : removeIndex) {
+                    System.out.println("i = " + i);
+                    Product p = productsList.get(index);
+                    rmProducts.add(p);
+                    EntityManager.productDAO.removeProduct(p);
+                }
+                productsList.removeAll(rmProducts);
+                showProductTable(productsList);
+            }
+
+        } catch (ArrayIndexOutOfBoundsException e) {
+            JOptionPane.showMessageDialog(rootPane, "Chọn một sản phẩm để xóa!");
+            e.printStackTrace();
+        }
+    }//GEN-LAST:event_btnDelProductActionPerformed
+
+    private void btnEditProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditProductActionPerformed
+        // TODO add your handling code here:
+        System.out.println(Arrays.toString(tableProduct.getSelectedRows()));
+        if (tableProduct.getSelectedRow() != -1) {
+            int select = tableProduct.getSelectedRow();
+            Product p = productsList.get(select);
+            System.out.println(select);
+            ProductViewUI editproduct = new ProductViewUI(EntityManager.mainUI, rootPaneCheckingEnabled, p);
+            if (editproduct.isDataChange) {
+                showProductTable();
+            }
+        }
+    }//GEN-LAST:event_btnEditProductActionPerformed
+
+    private void cboxCategoryActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxCategoryActionPerformed
+        // TODO add your handling code here:
+        dataProductChanged();
+    }//GEN-LAST:event_cboxCategoryActionPerformed
+
+    private void cboxSituationActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxSituationActionPerformed
+        // TODO add your handling code here:
+        if (cboxSituation.getSelectedItem().equals("Sắp đến")) {
+            lblTimeInProduct.setVisible(true);
+            txtTimeInProduct.setVisible(true);
+            txtTimeInProduct.setText(LocalDate.now().format(formatter));
+        } else {
+            lblTimeInProduct.setVisible(false);
+            txtTimeInProduct.setVisible(false);
+        }
+        dataProductChanged();
+    }//GEN-LAST:event_cboxSituationActionPerformed
+
+    private void btnSearchProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchProductActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_btnSearchProductActionPerformed
+
+    private void editSearchProductKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editSearchProductKeyReleased
+        // TODO add your handling code here:
+        dataProductChanged();
+    }//GEN-LAST:event_editSearchProductKeyReleased
+
+    private void cboxYear2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxYear2ActionPerformed
+        // TODO add your handling code here:
+        try{
+        paneGrap2.removeAll();
+        paneGrap2.setLayout(new BoxLayout(paneGrap2, BoxLayout.LINE_AXIS));
+        paneGrap2.add(FXChart.initializeAreaChart((String) cboxCategoryChart.getSelectedItem(), (String) cboxYear1.getSelectedItem(), (String) cboxYear2.getSelectedItem()));
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }//GEN-LAST:event_cboxYear2ActionPerformed
+
+    private void cboxYear1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxYear1ActionPerformed
+        // TODO add your handling code here:
+        try{
+        paneGrap2.removeAll();
+        paneGrap2.setLayout(new BoxLayout(paneGrap2, BoxLayout.LINE_AXIS));
+        paneGrap2.add(FXChart.initializeAreaChart((String) cboxCategoryChart.getSelectedItem(), (String) cboxYear1.getSelectedItem(), (String) cboxYear2.getSelectedItem()));
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }//GEN-LAST:event_cboxYear1ActionPerformed
+
+    private void cboxCategoryChartActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cboxCategoryChartActionPerformed
+        // TODO add your handling code here:
+        try{
+        paneGrap2.removeAll();
+        paneGrap2.setLayout(new BoxLayout(paneGrap2, BoxLayout.LINE_AXIS));
+        paneGrap2.add(FXChart.initializeAreaChart((String) cboxCategoryChart.getSelectedItem(), (String) cboxYear1.getSelectedItem(), (String) cboxYear2.getSelectedItem()));
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }//GEN-LAST:event_cboxCategoryChartActionPerformed
     public void showProductTable() {
         productsList = EntityManager.productDAO.getAllProducts();
         showProductTable(productsList);
@@ -2742,8 +3885,8 @@ public class MainUI extends javax.swing.JFrame {
                 vctRow.add(p.getQuantity());
                 vctRow.add(p.getUnit());
                 vctRow.add(EntityManager.supplierDAO.getSupplierNameById(p.getSupplierId()));
-                vctRow.add(p.getImportPrice());
-                vctRow.add(p.getRetailPrice());
+                vctRow.add(NumberToMoney.currencyFormat(p.getImportPrice()));
+                vctRow.add(NumberToMoney.currencyFormat(p.getRetailPrice()));
                 vctRow.add(new Date(p.getImportDate().getTime()).toLocalDate().format(formatter));
                 vctProductsData.add(vctRow);
             }
@@ -2912,6 +4055,7 @@ public class MainUI extends javax.swing.JFrame {
         btnCusCancel.setVisible(isEditting);
         btnCusDel.setVisible(isEditting);
         btnCusEdit.setVisible(!isEditting);
+        btnCusAddIv.setVisible(!isEditting);
 
         btnFrdSave.setVisible(isEditting);
         btnFrdCancel.setVisible(isEditting);
@@ -3015,31 +4159,67 @@ public class MainUI extends javax.swing.JFrame {
         txtFrdBank.setText(s.getPayments().get(0).getBank());
         txtFrdAddr.setText(s.getAddresses().get(0).toString());
     }
+    
+    void showIncomeHome(){
+        paneGrap2.removeAll();
+        paneGrap2.setLayout(new BoxLayout(paneGrap2, BoxLayout.LINE_AXIS));
+        paneGrap2.add(FXChart.initializeAreaChart((String) cboxCategoryChart.getSelectedItem(), (String) cboxYear1.getSelectedItem(), (String) cboxYear2.getSelectedItem()));
+        
+        paneGrap1.removeAll();
+        paneGrap1.setLayout(new BoxLayout(paneGrap1, BoxLayout.LINE_AXIS));
+        paneGrap1.add(FXChart.initializePieChart());
+        
+        paneGrap3.removeAll();
+        paneGrap3.setLayout(new BoxLayout(paneGrap3, BoxLayout.LINE_AXIS));
+        paneGrap3.add(FXChart.initializePieChartMonth());
+        
+        txtMonthIncome.setText(NumberToMoney.currencyFormat(EntityManager.invoiceDAO.getIncomeMonthNow()) + " VNĐ");
+        txtChi.setText(NumberToMoney.currencyFormat(EntityManager.invoiceDAO.getTotalPay()));
+        txtThu.setText(NumberToMoney.currencyFormat(EntityManager.invoiceDAO.getTotalRecv()));
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnAddCustomer;
     private javax.swing.JButton btnAddFriend;
     private javax.swing.JButton btnAddProduct;
+    private javax.swing.JButton btnAddSaleIv;
+    private javax.swing.JButton btnAddSaleIv1;
+    private javax.swing.JButton btnAddSaleIv2;
     private javax.swing.JButton btnAddSupplier;
+    private javax.swing.JButton btnCusAddIv;
     private javax.swing.JButton btnCusCancel;
     private javax.swing.JButton btnCusDel;
     private javax.swing.JButton btnCusEdit;
     private javax.swing.JButton btnCusSave;
     private javax.swing.JButton btnDelProduct;
     private javax.swing.JButton btnEditProduct;
+    private javax.swing.JButton btnEditSaleIv;
+    private javax.swing.JButton btnEditSaleIv1;
+    private javax.swing.JButton btnEditSaleIv2;
+    private javax.swing.JButton btnFrdAddIv;
     private javax.swing.JButton btnFrdCancel;
     private javax.swing.JButton btnFrdDel;
     private javax.swing.JButton btnFrdEdit;
     private javax.swing.JButton btnFrdSave;
+    private javax.swing.JButton btnPrintSaleIv;
+    private javax.swing.JButton btnPrintSaleIv1;
+    private javax.swing.JButton btnPrintSaleIv2;
+    private javax.swing.JButton btnPrintSaleQuote;
+    private javax.swing.JButton btnPrintSaleQuote1;
+    private javax.swing.JButton btnPrintSaleQuote2;
     private javax.swing.JButton btnSearchProduct;
+    private javax.swing.JButton btnSupAddIv;
     private javax.swing.JButton btnSupCancel;
     private javax.swing.JButton btnSupDel;
     private javax.swing.JButton btnSupEdit;
     private javax.swing.JButton btnSupSave;
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JComboBox<String> cboxCategory;
+    private javax.swing.JComboBox<String> cboxCategoryChart;
     private javax.swing.JComboBox<String> cboxSituation;
     private javax.swing.JComboBox<String> cboxSupplier;
+    private javax.swing.JComboBox<String> cboxYear1;
+    private javax.swing.JComboBox<String> cboxYear2;
     private javax.swing.JTextField editSearchCustomer;
     private javax.swing.JTextField editSearchFriend;
     private javax.swing.JTextField editSearchProduct;
@@ -3047,11 +4227,17 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
+    private javax.swing.JLabel jLabel19;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel20;
+    private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel23;
     private javax.swing.JLabel jLabel24;
@@ -3074,21 +4260,51 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel40;
     private javax.swing.JLabel jLabel41;
+    private javax.swing.JLabel jLabel42;
+    private javax.swing.JLabel jLabel43;
+    private javax.swing.JLabel jLabel44;
+    private javax.swing.JLabel jLabel45;
+    private javax.swing.JLabel jLabel46;
+    private javax.swing.JLabel jLabel47;
+    private javax.swing.JLabel jLabel48;
+    private javax.swing.JLabel jLabel49;
     private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel50;
+    private javax.swing.JLabel jLabel51;
+    private javax.swing.JLabel jLabel52;
+    private javax.swing.JLabel jLabel53;
+    private javax.swing.JLabel jLabel54;
+    private javax.swing.JLabel jLabel55;
+    private javax.swing.JLabel jLabel56;
+    private javax.swing.JLabel jLabel57;
+    private javax.swing.JLabel jLabel58;
+    private javax.swing.JLabel jLabel59;
     private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel60;
+    private javax.swing.JLabel jLabel61;
+    private javax.swing.JLabel jLabel63;
+    private javax.swing.JLabel jLabel64;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel10;
+    private javax.swing.JPanel jPanel11;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
     private javax.swing.JPanel jPanel4;
     private javax.swing.JPanel jPanel5;
-    private javax.swing.JPanel jPanel6;
+    private javax.swing.JPanel jPanel7;
     private javax.swing.JPanel jPanel8;
     private javax.swing.JPanel jPanel9;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane10;
+    private javax.swing.JScrollPane jScrollPane11;
+    private javax.swing.JScrollPane jScrollPane12;
+    private javax.swing.JScrollPane jScrollPane13;
+    private javax.swing.JScrollPane jScrollPane14;
+    private javax.swing.JScrollPane jScrollPane15;
+    private javax.swing.JScrollPane jScrollPane16;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
@@ -3107,22 +4323,50 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JLabel lblTimeInProduct;
     private javax.swing.JList<String> listCustomer;
     private javax.swing.JList<String> listFriend;
+    private javax.swing.JList<String> listSaleIv;
+    private javax.swing.JList<String> listSaleIv1;
+    private javax.swing.JList<String> listSaleIv2;
     private javax.swing.JList<String> listSupplier;
+    private javax.swing.JPanel paneGrap1;
+    private javax.swing.JPanel paneGrap2;
+    private javax.swing.JPanel paneGrap3;
     private javax.swing.JPanel panelCusInfor;
     private javax.swing.JPanel panelFrdInfor;
     private javax.swing.JPanel panelSupInfor;
+    private javax.swing.JTextField searchSaleIv;
+    private javax.swing.JTextField searchSaleIv1;
+    private javax.swing.JTextField searchSaleIv2;
     private javax.swing.JPanel sliderPane;
     private javax.swing.JTable tableImportInvoice;
     private javax.swing.JTable tableLoanInvoice;
     private javax.swing.JTable tableProduct;
     private javax.swing.JTable tableSalesInvoice;
+    private javax.swing.JTable tblSaleIv;
+    private javax.swing.JTable tblSaleIv1;
+    private javax.swing.JTable tblSaleIv2;
     private javax.swing.JTree treeImport;
     private javax.swing.JTree treeLoan;
     private javax.swing.JTree treeSale;
+    private javax.swing.JLabel txtChi;
     private javax.swing.JTextField txtCusAddr;
     private javax.swing.JTextField txtCusBank;
     private javax.swing.JTextField txtCusBankID;
     private javax.swing.JTextField txtCusID;
+    private javax.swing.JTextField txtCusIvAddr;
+    private javax.swing.JTextField txtCusIvAddr1;
+    private javax.swing.JTextField txtCusIvAddr2;
+    private javax.swing.JTextField txtCusIvName;
+    private javax.swing.JTextField txtCusIvName1;
+    private javax.swing.JTextField txtCusIvName2;
+    private javax.swing.JTextField txtCusIvPaid;
+    private javax.swing.JTextField txtCusIvPaid1;
+    private javax.swing.JTextField txtCusIvPaid2;
+    private javax.swing.JTextField txtCusIvPhone;
+    private javax.swing.JTextField txtCusIvPhone1;
+    private javax.swing.JTextField txtCusIvPhone2;
+    private javax.swing.JTextField txtCusIvTotal;
+    private javax.swing.JTextField txtCusIvTotal1;
+    private javax.swing.JTextField txtCusIvTotal2;
     private javax.swing.JTextField txtCusName;
     private javax.swing.JTextField txtCusNameBank;
     private javax.swing.JTextField txtCusPhone;
@@ -3133,6 +4377,10 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JTextField txtFrdName;
     private javax.swing.JTextField txtFrdNameBank;
     private javax.swing.JTextField txtFrdPhone;
+    private javax.swing.JLabel txtMonthIncome;
+    private javax.swing.JTextField txtSaleInvID;
+    private javax.swing.JTextField txtSaleInvID1;
+    private javax.swing.JTextField txtSaleInvID2;
     private javax.swing.JTextField txtSupAddr;
     private javax.swing.JTextField txtSupBank;
     private javax.swing.JTextField txtSupBankID;
@@ -3140,6 +4388,7 @@ public class MainUI extends javax.swing.JFrame {
     private javax.swing.JTextField txtSupName;
     private javax.swing.JTextField txtSupNameBank;
     private javax.swing.JTextField txtSupPhone;
+    private javax.swing.JLabel txtThu;
     private javax.swing.JTextField txtTimeInProduct;
     // End of variables declaration//GEN-END:variables
 }
